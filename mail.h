@@ -2,6 +2,7 @@
 
 int ex(char *argv[]);
 int mk(char *argv[]);
+int pg(char *argv[]);
 
 struct mbox;
 struct mail;
@@ -16,10 +17,12 @@ void mbox_set(struct mbox *mbox, int i, char *msg, long msz);
 int mbox_ith(char *path, int n, char **msg, long *msz);
 
 char *msg_get(char *msg, long msz, char *hdr);
-int msg_set(char *msg, long msz, char **mod, long *modlen, char *hdr, char *val);
+int msg_set(char *msg, long msglen, char **mod, long *modlen, char *hdr, char *val);
 char *msg_hdrdec(char *hdr);
+int msg_demime(char *msg, long msglen, char **mod, long *modlen);
 
 int hdrlen(char *hdr, long len);
+int startswith(char *r, char *s);
 long xread(int fd, void *buf, long len);
 long xwrite(int fd, void *buf, long len);
 int xpipe(char *cmd, char *ibuf, long ilen, char **obuf, long *olen);

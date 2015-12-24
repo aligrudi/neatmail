@@ -15,19 +15,6 @@
 #include <sys/stat.h>
 #include "mail.h"
 
-static int pg(char *argv[])
-{
-	char *mbox = argv[0];
-	char *addr = argv[1];
-	char *msg;
-	long msz;
-	if (!mbox_ith(mbox, atoi(addr), &msg, &msz)) {
-		xwrite(1, msg, msz);
-		free(msg);
-	}
-	return 0;
-}
-
 static int has_mail(char *path)
 {
 	struct stat st;

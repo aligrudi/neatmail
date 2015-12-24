@@ -1,7 +1,7 @@
 CC = cc
 CFLAGS = -Wall -O2
 LDFLAGS =
-OBJS = mail.o ex.o mk.o mbox.o msg.o mime.o util.o sbuf.o
+OBJS = mail.o ex.o mk.o pg.o mbox.o msg.o mime.o util.o sbuf.o
 
 all: mail
 %.o: %.c mail.h
