@@ -125,10 +125,7 @@ int mk(char *argv[])
 	char **ln[4];
 	int i, j, k;
 	int first = 0;
-	for (i = 0; argv[i]; i++) {
-		if (argv[i][0] != '-') {
-			break;
-		}
+	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'f') {
 			first = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
 			continue;
