@@ -119,6 +119,13 @@ static void segs_free(char **segs)
 	free(segs);
 }
 
+static char *usage =
+	"usage: neatmail mk [options] mbox\n\n"
+	"options:\n"
+	"   -0 fmt \tmessage first line format (e.g., 20from:40subject:)\n"
+	"   -1 fmt \tmessage second line format\n"
+	"   -f n   \tthe first message to list\n";
+
 int mk(char *argv[])
 {
 	struct mbox *mbox;
@@ -137,9 +144,15 @@ int mk(char *argv[])
 			continue;
 		}
 	}
-	if (!argv[i])
+	if (!argv[i]) {
+		printf("%s", usage);
 		return 1;
+	}
 	mbox = mbox_open(argv[i]);
+	if (!mbox) {
+		fprintf(stderr, "neatmail: cannot open <%s>\n", argv[i]);
+		return 1;
+	}
 	for (i = first; i < mbox_len(mbox); i++) {
 		char *msg;
 		long msz;

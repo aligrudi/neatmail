@@ -328,7 +328,15 @@ int ex(char *argv[])
 	char loc[EXLEN];
 	int beg, end, i;
 	char *cmd;
+	if (!argv[0]) {
+		printf("usage: neatmail ex mbox <cmds\n");
+		return 1;
+	}
 	mbox = mbox_open(argv[0]);
+	if (!mbox) {
+		fprintf(stderr, "neatmail: cannot open <%s>\n", argv[0]);
+		return 1;
+	}
 	while (fgets(ec, sizeof(ec), stdin)) {
 		char *cur = loc;
 		if (isupper((unsigned char) ec[0]))

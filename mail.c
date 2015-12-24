@@ -32,9 +32,19 @@ static int ns(char *argv[])
 	return 0;
 }
 
+static char *usage =
+	"usage: neatmail command [options]\n\n"
+	"commands:\n"
+	"   ex  \texecute commands on an mbox\n"
+	"   mk  \tlist the messages in an mbox\n"
+	"   pg  \tpage a message of an mbox\n"
+	"   ns  \tcheck mboxes for new mails\n";
+
 int main(int argc, char *argv[])
 {
 	signal(SIGPIPE, SIG_IGN);
+	if (!argv[1])
+		printf("%s", usage);
 	if (argv[1] && !strcmp("mk", argv[1]))
 		mk(argv + 2);
 	if (argv[1] && !strcmp("ex", argv[1]))

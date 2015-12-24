@@ -10,6 +10,13 @@
 static void msg_new(char **msg, long *msglen);
 static int msg_reply(char *msg, long msglen, char **mod, long *modlen);
 
+static char *usage =
+	"usage: neatmail pg [options] mbox msg\n\n"
+	"options:\n"
+	"   -m  \tdecode mime message\n"
+	"   -r  \tgenerate a reply\n"
+	"   -n  \tgenerate a new message\n";
+
 int pg(char *argv[])
 {
 	char *mbox, *addr;
@@ -33,8 +40,10 @@ int pg(char *argv[])
 		free(msg);
 		return 0;
 	}
-	if (!argv[i] || !argv[i + 1])
+	if (!argv[i] || !argv[i + 1]) {
+		printf("%s", usage);
 		return 1;
+	}
 	mbox = argv[i];
 	addr = argv[i + 1];
 	if (!mbox_ith(mbox, atoi(addr), &msg, &msglen)) {
