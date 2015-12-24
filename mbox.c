@@ -105,11 +105,11 @@ static int mbox_read(struct mbox *mbox)
 {
 	int fd = open(mbox->path, O_RDONLY);
 	if (fd < 0)
-		return 0;
+		return 1;
 	mbox->len = filesize(fd);
 	mbox->buf = malloc(mbox->len + 1);
 	if (!mbox->buf)
-		return -1;
+		return 1;
 	xread(fd, mbox->buf, mbox->len);
 	mbox->buf[mbox->len] = '\0';
 	close(fd);
@@ -121,9 +121,9 @@ static int mbox_read(struct mbox *mbox)
 	mbox->modlen = malloc(mbox->n * sizeof(mbox->modlen[0]));
 	memset(mbox->mod, 0, mbox->n * sizeof(mbox->mod[0]));
 	if (!mbox->msg || !mbox->msglen || !mbox->mod || !mbox->modlen)
-		return -1;
+		return 1;
 	if (mbox_mails(mbox, mbox->buf, mbox->buf + mbox->len))
-		return -1;
+		return 1;
 	return 0;
 }
 
@@ -144,7 +144,7 @@ struct mbox *mbox_open(char *path)
 		return NULL;
 	memset(mbox, 0, sizeof(*mbox));
 	mbox->path = sdup(path);
-	if (!mbox->path || mbox_read(mbox) < 0) {
+	if (!mbox->path || mbox_read(mbox)) {
 		mbox_free(mbox);
 		return NULL;
 	}
