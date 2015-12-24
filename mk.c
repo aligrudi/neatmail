@@ -124,20 +124,26 @@ int mk(char *argv[])
 	struct mbox *mbox;
 	char **ln[4];
 	int i, j, k;
+	int first = 0;
 	for (i = 0; argv[i]; i++) {
 		if (argv[i][0] != '-') {
 			break;
+		}
+		if (argv[i][1] == 'f') {
+			first = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
+			continue;
 		}
 		if (argv[i][1] == '0' || argv[i][1] == '1') {
 			int idx = argv[i][1] - '0';
 			char *fmt = argv[i][2] ? argv[i] + 2 : argv[++i];
 			ln[idx] = segs_make(fmt, ':', 1);
+			continue;
 		}
 	}
 	if (!argv[i])
 		return 1;
 	mbox = mbox_open(argv[i]);
-	for (i = 0; i < mbox_len(mbox); i++) {
+	for (i = first; i < mbox_len(mbox); i++) {
 		char *msg;
 		long msz;
 		mbox_get(mbox, i, &msg, &msz);
