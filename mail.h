@@ -17,6 +17,7 @@ int mbox_ith(char *path, int n, char **msg, long *msz);
 
 char *msg_get(char *msg, long msz, char *hdr);
 int msg_set(char *msg, long msz, char **mod, long *modlen, char *hdr, char *val);
+char *msg_hdrdec(char *hdr);
 
 int hdrlen(char *hdr, long len);
 long xread(int fd, void *buf, long len);

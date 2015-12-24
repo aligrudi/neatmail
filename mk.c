@@ -4,7 +4,7 @@
 #include <string.h>
 #include "mail.h"
 
-int uc_len(char *s)
+static int uc_len(char *s)
 {
 	int c = (unsigned char) s[0];
 	if (~c & 0x80)
@@ -30,7 +30,7 @@ static int uc_wid(char *s)
 static char *msg_dec(char *msg, long msz, char *hdr)
 {
 	char *val = msg_get(msg, msz, hdr);
-	char *buf;
+	char *buf, *ret;
 	int val_len;
 	if (!val)
 		return NULL;
@@ -38,7 +38,9 @@ static char *msg_dec(char *msg, long msz, char *hdr)
 	buf = malloc(val_len + 1);
 	memcpy(buf, val, val_len);
 	buf[val_len] = '\0';
-	return buf;
+	ret = msg_hdrdec(buf);
+	free(buf);
+	return ret;
 }
 
 static int msg_stat(char *msg, long msz)
