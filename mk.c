@@ -89,34 +89,13 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 	return sbuf_done(dst);
 }
 
-static char **segs_make(char *s, int d, int inc)
+static char *segment(char *d, char *s, int m)
 {
-	char **segs;
-	char *r = s;
-	int n = 1;
-	int i;
-	while (strchr(r, d)) {
-		n++;
-		r = strchr(r, d) + 1;
-	}
-	segs = malloc((n + 1) * sizeof(segs[0]));
-	segs[n] = NULL;
-	for (i = 0; i < n; i++) {
-		r = strchr(s, i < n - 1 ? d : '\0');
-		segs[i] = malloc(r - s + 2);
-		memcpy(segs[i], s, r - s + inc);
-		segs[i][r - s + inc] = '\0';
-		s = r + 1;
-	}
-	return segs;
-}
-
-static void segs_free(char **segs)
-{
-	int i;
-	for (i = 0; segs[i]; i++)
-		free(segs[i]);
-	free(segs);
+	char *r = strchr(s, m);
+	char *e = r ? r + 1 : strchr(s, '\0');
+	memcpy(d, s, e - s);
+	d[e - s] = '\0';
+	return e;
 }
 
 static char *usage =
@@ -129,8 +108,8 @@ static char *usage =
 int mk(char *argv[])
 {
 	struct mbox *mbox;
-	char **ln[4];
-	int i, j, k;
+	char *ln[4] = {NULL};
+	int i, j;
 	int first = 0;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'f') {
@@ -139,8 +118,7 @@ int mk(char *argv[])
 		}
 		if (argv[i][1] == '0' || argv[i][1] == '1') {
 			int idx = argv[i][1] - '0';
-			char *fmt = argv[i][2] ? argv[i] + 2 : argv[++i];
-			ln[idx] = segs_make(fmt, ':', 1);
+			ln[idx] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
 	}
@@ -159,11 +137,13 @@ int mk(char *argv[])
 		mbox_get(mbox, i, &msg, &msz);
 		printf("%c%04d", msg_stat(msg, msz), i);
 		for (j = 0; ln[j]; j++) {
+			char *cln = ln[j];
+			char *tok = malloc(strlen(ln[j]) + 1);
 			if (j)
 				printf("\n");
-			for (k = 0; ln[j][k] && ln[j][k][0]; k++) {
-				char *fmt = ln[j][k];
-				char *hdr = fmt;
+			while ((cln = segment(tok, cln, ':')) && tok[0]) {
+				char *fmt = tok;
+				char *hdr = tok;
 				char *val;
 				while (isdigit((unsigned char) *hdr))
 					hdr++;
@@ -171,11 +151,10 @@ int mk(char *argv[])
 				printf("\t%s", val);
 				free(val);
 			}
+			free(tok);
 		}
 		printf("\n");
 	}
 	mbox_free(mbox);
-	for (i = 0; ln[i]; i++)
-		segs_free(ln[i]);
 	return 0;
 }
