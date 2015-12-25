@@ -47,6 +47,7 @@ static char *usage =
 	"   -h hdrs \tthe list of headers to include\n"
 	"   -m      \tdecode mime message\n"
 	"   -r      \tgenerate a reply\n"
+	"   -f      \tgenerate a forward\n"
 	"   -n      \tgenerate a new message\n";
 
 int pg(char *argv[])
