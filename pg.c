@@ -10,17 +10,49 @@
 static void msg_new(char **msg, long *msglen);
 static int msg_reply(char *msg, long msglen, char **mod, long *modlen);
 
+static char *segment(char *d, char *s, int m)
+{
+	char *r = strchr(s, m);
+	char *e = r ? r + 1 : strchr(s, '\0');
+	memcpy(d, s, e - s);
+	d[e - s] = '\0';
+	return e;
+}
+
+static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hdrs)
+{
+	struct sbuf *sb = sbuf_make();
+	char *hdr = malloc(strlen(hdrs) + 1);
+	char *s = msg;
+	char *e = msg + msglen;
+	while ((hdrs = segment(hdr, hdrs, ':')) && hdr[0]) {
+		char *val = msg_get(msg, msglen, hdr);
+		if (val)
+			sbuf_mem(sb, val, hdrlen(val, msg + msglen - val));
+	}
+	free(hdr);
+	while (s + 1 < e && (s[0] != '\n' || s[1] != '\n'))
+		s++;
+	s++;
+	sbuf_mem(sb, s, e - s);
+	*modlen = sbuf_len(sb);
+	*mod = sbuf_done(sb);
+	return 0;
+}
+
 static char *usage =
 	"usage: neatmail pg [options] mbox msg\n\n"
 	"options:\n"
-	"   -m  \tdecode mime message\n"
-	"   -r  \tgenerate a reply\n"
-	"   -n  \tgenerate a new message\n";
+	"   -f hdrs \tthe list of headers to include\n"
+	"   -m      \tdecode mime message\n"
+	"   -r      \tgenerate a reply\n"
+	"   -n      \tgenerate a new message\n";
 
 int pg(char *argv[])
 {
 	char *mbox, *addr;
 	char *msg, *mod;
+	char *hdrs = NULL;
 	long msglen, modlen;
 	int demime = 0;
 	int reply = 0;
@@ -33,6 +65,10 @@ int pg(char *argv[])
 			reply = 1;
 		if (argv[i][1] == 'n')
 			newmsg = 1;
+		if (argv[i][1] == 'f') {
+			hdrs = argv[i][2] ? argv[i] + 2 : argv[++i];
+			continue;
+		}
 	}
 	if (newmsg) {
 		msg_new(&msg, &msglen);
@@ -53,6 +89,11 @@ int pg(char *argv[])
 			msglen = modlen;
 		}
 		if (reply && !msg_reply(msg, msglen, &mod, &modlen)) {
+			free(msg);
+			msg = mod;
+			msglen = modlen;
+		}
+		if (hdrs && !msg_filter(msg, msglen, &mod, &modlen, hdrs)) {
 			free(msg);
 			msg = mod;
 			msglen = modlen;
@@ -113,8 +154,7 @@ static void msg_new(char **msg, long *msglen)
 	put_date(sb);
 	put_agent(sb);
 	sbuf_chr(sb, '\n');
-	sbuf_chr(sb, '\0');
-	*msglen = sbuf_len(sb) - 1;
+	*msglen = sbuf_len(sb);
 	*msg = sbuf_done(sb);
 }
 
@@ -239,8 +279,7 @@ static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
 		put_replyto(sb, id_hdr, ref_hdr);
 	put_agent(sb);
 	quote_body(sb, msg, msglen);
-	sbuf_chr(sb, '\0');
-	*modlen = sbuf_len(sb) - 1;
+	*modlen = sbuf_len(sb);
 	*mod = sbuf_done(sb);
 	return 0;
 }
