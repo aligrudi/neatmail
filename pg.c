@@ -9,6 +9,7 @@
 
 static void msg_new(char **msg, long *msglen);
 static int msg_reply(char *msg, long msglen, char **mod, long *modlen);
+static int msg_forward(char *msg, long msglen, char **mod, long *modlen);
 
 static char *segment(char *d, char *s, int m)
 {
@@ -43,7 +44,7 @@ static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hd
 static char *usage =
 	"usage: neatmail pg [options] mbox msg\n\n"
 	"options:\n"
-	"   -f hdrs \tthe list of headers to include\n"
+	"   -h hdrs \tthe list of headers to include\n"
 	"   -m      \tdecode mime message\n"
 	"   -r      \tgenerate a reply\n"
 	"   -n      \tgenerate a new message\n";
@@ -56,6 +57,7 @@ int pg(char *argv[])
 	long msglen, modlen;
 	int demime = 0;
 	int reply = 0;
+	int forward = 0;
 	int newmsg = 0;
 	int i;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
@@ -65,7 +67,9 @@ int pg(char *argv[])
 			reply = 1;
 		if (argv[i][1] == 'n')
 			newmsg = 1;
-		if (argv[i][1] == 'f') {
+		if (argv[i][1] == 'f')
+			forward = 1;
+		if (argv[i][1] == 'h') {
 			hdrs = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
@@ -94,6 +98,11 @@ int pg(char *argv[])
 			msglen = modlen;
 		}
 		if (hdrs && !msg_filter(msg, msglen, &mod, &modlen, hdrs)) {
+			free(msg);
+			msg = mod;
+			msglen = modlen;
+		}
+		if (forward && !msg_forward(msg, msglen, &mod, &modlen)) {
 			free(msg);
 			msg = mod;
 			msglen = modlen;
@@ -174,12 +183,21 @@ static int hdr_len(char *hdr)
 	return l;
 }
 
-static void put_replysubj(struct sbuf *sb, char *subj)
+static void put_subjreply(struct sbuf *sb, char *subj)
 {
 	subj = hdr_val(subj);
 	sbuf_str(sb, "Subject: ");
 	if (tolower(subj[0]) != 'r' || tolower(subj[1]) != 'e')
 		sbuf_str(sb, "Re: ");
+	sbuf_mem(sb, subj, hdr_len(subj));
+	sbuf_str(sb, "\n");
+}
+
+static void put_subjfwd(struct sbuf *sb, char *subj)
+{
+	subj = hdr_val(subj);
+	sbuf_str(sb, "Subject: ");
+	sbuf_str(sb, "Fwd: ");
 	sbuf_mem(sb, subj, hdr_len(subj));
 	sbuf_str(sb, "\n");
 }
@@ -273,12 +291,29 @@ static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
 	put_from(sb);
 	put_reply(sb, from_hdr, to_hdr, cc_hdr, rply_hdr);
 	if (subj_hdr)
-		put_replysubj(sb, subj_hdr);
+		put_subjreply(sb, subj_hdr);
 	put_id(sb);
 	if (id_hdr)
 		put_replyto(sb, id_hdr, ref_hdr);
 	put_agent(sb);
 	quote_body(sb, msg, msglen);
+	*modlen = sbuf_len(sb);
+	*mod = sbuf_done(sb);
+	return 0;
+}
+
+static int msg_forward(char *msg, long msglen, char **mod, long *modlen)
+{
+	struct sbuf *sb = sbuf_make();
+	char *subj_hdr = msg_get(msg, msglen, "Subject:");
+	put_from_(sb);
+	put_date(sb);
+	put_from(sb);
+	put_subjfwd(sb, subj_hdr);
+	put_id(sb);
+	put_agent(sb);
+	sbuf_str(sb, "\n-------- Original Message --------\n");
+	sbuf_mem(sb, msg, msglen);
 	*modlen = sbuf_len(sb);
 	*mod = sbuf_done(sb);
 	return 0;
