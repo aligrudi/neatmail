@@ -299,7 +299,7 @@ static int ec_stat(char *ec)
 	char *val;
 	char newval[16];
 	char c = ec[0];
-	char i = atoi(ec + 1);
+	int i = atoi(ec + 1);
 	char *msg, *mod;
 	long msglen, modlen;
 	if (i < 0 || i >= mbox_len(mbox))
