@@ -174,7 +174,7 @@ static int ex_region(char *loc, int *beg, int *end)
 	while (*loc && *loc != ',' && *loc != ';')
 		loc++;
 	if (*loc == ',')
-		*end = ex_lineno(++loc);
+		*end = ex_lineno(++loc) + 1;
 	else
 		*end = *beg == mbox_len(mbox) ? *beg : *beg + 1;
 	if (*beg < 0 || *beg >= mbox_len(mbox))
