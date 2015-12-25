@@ -143,11 +143,6 @@ static void put_id(struct sbuf *sb)
 	sbuf_printf(sb, "Message-ID: <%s.%s>\n", host, buf);
 }
 
-static void put_from(struct sbuf *sb)
-{
-	sbuf_printf(sb, "From: \n");
-}
-
 static void put_agent(struct sbuf *sb)
 {
 	sbuf_printf(sb, "User-Agent: " USERAGENT "\n");
@@ -157,7 +152,7 @@ static void msg_new(char **msg, long *msglen)
 {
 	struct sbuf *sb = sbuf_make();
 	put_from_(sb);
-	put_from(sb);
+	sbuf_printf(sb, "From: \n");
 	sbuf_printf(sb, "To: \n");
 	sbuf_printf(sb, "Subject: \n");
 	put_id(sb);
@@ -289,7 +284,7 @@ static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
 	char *rply_hdr = msg_get(msg, msglen, "Reply-To:");
 	put_from_(sb);
 	put_date(sb);
-	put_from(sb);
+	sbuf_printf(sb, "From: \n");
 	put_reply(sb, from_hdr, to_hdr, cc_hdr, rply_hdr);
 	if (subj_hdr)
 		put_subjreply(sb, subj_hdr);
@@ -309,7 +304,8 @@ static int msg_forward(char *msg, long msglen, char **mod, long *modlen)
 	char *subj_hdr = msg_get(msg, msglen, "Subject:");
 	put_from_(sb);
 	put_date(sb);
-	put_from(sb);
+	sbuf_printf(sb, "From: \n");
+	sbuf_printf(sb, "To: \n");
 	put_subjfwd(sb, subj_hdr);
 	put_id(sb);
 	put_agent(sb);
