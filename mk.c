@@ -4,6 +4,8 @@
 #include <string.h>
 #include "mail.h"
 
+#define LEN(a)		(sizeof(a) / sizeof((a)[0]))
+
 static int uc_len(char *s)
 {
 	int c = (unsigned char) s[0];
@@ -54,12 +56,13 @@ static int msg_stat(char *msg, long msz)
 	return val[0];
 }
 
-static char *fieldformat(char *msg, long msz, char *hdr, int wid)
+static char *fieldformat(char *msg, long msz, char *hdr, int wid, int lev)
 {
 	struct sbuf *dst;
 	int dst_wid;
-	char *val = msg_dec(msg, msz, hdr);
-	char *val0, *end;
+	char *val, *val0, *end;
+	int i;
+	val = msg_dec(msg, msz, hdr[0] == '~' ? hdr + 1 : hdr);
 	if (!val) {
 		val = malloc(1);
 		val[0] = '\0';
@@ -71,6 +74,16 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 	while (val < end && isspace((unsigned char) *val))
 		val++;
 	dst_wid = 0;
+	if (!strcmp("~subject:", hdr)) {
+		if (lev && startswith(val, "re:")) {
+			val += 3;
+			while (val < end && isspace((unsigned char) *val))
+				val++;
+		}
+		dst_wid += lev;
+		for (i = 0; i < lev; i++)
+			sbuf_chr(dst, '.');
+	}
 	while (val < end && (wid <= 0 || dst_wid < wid)) {
 		int l = uc_len(val);
 		if (l == 1) {
@@ -103,17 +116,28 @@ static char *usage =
 	"options:\n"
 	"   -0 fmt \tmessage first line format (e.g., 20from:40subject:)\n"
 	"   -1 fmt \tmessage second line format\n"
+	"   -sd    \tsort by receiving date\n"
+	"   -st    \tsort by threads\n"
 	"   -f n   \tthe first message to list\n";
+
+static int sort_mails(struct mbox *mbox, int *mids, int *levs);
 
 int mk(char *argv[])
 {
+	int *mids, *levs;
 	struct mbox *mbox;
 	char *ln[4] = {NULL};
 	int i, j;
 	int first = 0;
+	int sort = 0;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'f') {
 			first = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
+			continue;
+		}
+		if (argv[i][1] == 's') {
+			char t = (argv[i][2] ? argv[i] + 2 : argv[++i])[0];
+			sort = t == 't' ? 2 : 1;
 			continue;
 		}
 		if (argv[i][1] == '0' || argv[i][1] == '1') {
@@ -131,11 +155,19 @@ int mk(char *argv[])
 		fprintf(stderr, "neatmail: cannot open <%s>\n", argv[i]);
 		return 1;
 	}
+	mids = malloc(mbox_len(mbox) * sizeof(mids[0]));
+	levs = malloc(mbox_len(mbox) * sizeof(levs[0]));
+	for (i = 0; i < mbox_len(mbox); i++)
+		mids[i] = i;
+	for (i = 0; i < mbox_len(mbox); i++)
+		levs[i] = 0;
+	if (sort)
+		sort_mails(mbox, mids, sort == 2 ? levs : NULL);
 	for (i = first; i < mbox_len(mbox); i++) {
 		char *msg;
 		long msz;
-		mbox_get(mbox, i, &msg, &msz);
-		printf("%c%04d", msg_stat(msg, msz), i);
+		mbox_get(mbox, mids[i], &msg, &msz);
+		printf("%c%04d", msg_stat(msg, msz), mids[i]);
 		for (j = 0; ln[j]; j++) {
 			char *cln = ln[j];
 			char *tok = malloc(strlen(ln[j]) + 1);
@@ -147,14 +179,228 @@ int mk(char *argv[])
 				char *val;
 				while (isdigit((unsigned char) *hdr))
 					hdr++;
-				val = fieldformat(msg, msz, hdr, atoi(fmt));
-				printf("\t%s", val);
+				printf("\t");
+				val = fieldformat(msg, msz, hdr,
+						atoi(fmt), levs[i]);
+				printf("%s", val);
 				free(val);
 			}
 			free(tok);
 		}
 		printf("\n");
 	}
+	free(mids);
+	free(levs);
 	mbox_free(mbox);
+	return 0;
+}
+
+/* sorting messages */
+
+struct msg {
+	char *msg;
+	long msglen;
+	char *id;	/* message-id header value */
+	int id_len;	/* message-id length */
+	char *rply;	/* reply-to header value */
+	int rply_len;	/* reply-to length */
+	int date;	/* message receiving date */
+	int depth;	/* depth of message in the thread */
+	int oidx;	/* the original index of the message */
+	struct msg *parent;
+	struct msg *head;
+	struct msg *tail;
+	struct msg *next;
+};
+
+static int id_cmp(char *i1, int l1, char *i2, int l2)
+{
+	if (l1 != l2)
+		return l2 - l1;
+	return strncmp(i1, i2, l1);
+}
+
+static int msgcmp_id(void *v1, void *v2)
+{
+	struct msg *t1 = *(struct msg **) v1;
+	struct msg *t2 = *(struct msg **) v2;
+	return id_cmp(t1->id, t1->id_len, t2->id, t2->id_len);
+}
+
+static int msgcmp_date(void *v1, void *v2)
+{
+	struct msg *t1 = *(struct msg **) v1;
+	struct msg *t2 = *(struct msg **) v2;
+	return t1->date == t2->date ? t1->oidx - t2->oidx : t1->date - t2->date;
+}
+
+static char *months[] = {
+	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+static char *readtok(char *s, char *d)
+{
+	while (*s == ' ' || *s == ':')
+		s++;
+	while (!strchr(" \t\r\n:", *s))
+		*d++ = *s++;
+	*d = '\0';
+	return s;
+}
+
+static int fromdate(char *s)
+{
+	char tok[128];
+	int year, mon, day, hour, min, sec;
+	int i;
+	/* parsing "From ali Tue Apr 16 20:18:40 2013" */
+	s = readtok(s, tok);		/* From */
+	s = readtok(s, tok);		/* username */
+	s = readtok(s, tok);		/* day of week */
+	s = readtok(s, tok);		/* month name */
+	mon = 0;
+	for (i = 0; i < LEN(months); i++)
+		if (!strcmp(months[i], tok))
+			mon = i;
+	s = readtok(s, tok);		/* day of month */
+	day = atoi(tok);
+	s = readtok(s, tok);		/* hour */
+	hour = atoi(tok);
+	s = readtok(s, tok);		/* minute */
+	min = atoi(tok);
+	s = readtok(s, tok);		/* seconds */
+	sec = atoi(tok);
+	s = readtok(s, tok);		/* year */
+	year = atoi(tok);
+	return ((year - 1970) * 400 + mon * 31 + day) * 24 * 3600 +
+		hour * 3600 + min * 60 + sec;
+}
+
+static struct msg *msg_byid(struct msg **msgs, int n, char *id, int len)
+{
+	int l = 0;
+	int h = n;
+	while (l < h) {
+		int m = (l + h) / 2;
+		int d = id_cmp(id, len, msgs[m]->id, msgs[m]->id_len);
+		if (!d)
+			return msgs[m];
+		if (d < 0)
+			h = m;
+		else
+			l = m + 1;
+	}
+	return NULL;
+}
+
+static void msgs_tree(struct msg **all, struct msg **sorted_id, int n)
+{
+	int i;
+	for (i = 0; i < n; i++) {
+		struct msg *msg = all[i];
+		struct msg *dad;
+		if (!msg->rply)
+			continue;
+		dad = msg_byid(sorted_id, n, msg->rply, msg->rply_len);
+		if (!dad)
+			continue;
+		msg->parent = dad;
+		msg->depth = dad->depth + 1;
+		if (!msg->parent->head)
+			msg->parent->head = msg;
+		else
+			msg->parent->tail->next = msg;
+		msg->parent->tail = msg;
+	}
+}
+
+static void msg_init(struct msg *msg)
+{
+	char *id_hdr = msg_get(msg->msg, msg->msglen, "Message-ID:");
+	char *rply_hdr = msg_get(msg->msg, msg->msglen, "In-Reply-To:");
+	char *end = msg->msg + msg->msglen;
+	if (id_hdr) {
+		int len = hdrlen(id_hdr, end - id_hdr);
+		char *beg = memchr(id_hdr, '<', len);
+		char *end = beg ? memchr(id_hdr, '>', len) : NULL;
+		if (beg && end) {
+			while (*beg == '<')
+				beg++;
+			msg->id = beg;
+			msg->id_len = end - beg;
+		}
+	}
+	if (rply_hdr) {
+		int len = hdrlen(rply_hdr, end - rply_hdr);
+		char *beg = memchr(rply_hdr, '<', len);
+		char *end = beg ? memchr(rply_hdr, '>', len) : NULL;
+		if (beg && end) {
+			while (*beg == '<')
+				beg++;
+			msg->rply = beg;
+			msg->rply_len = end - beg;
+		}
+	}
+	msg->date = fromdate(msg->msg);
+}
+
+static struct msg **put_msg(struct msg **sorted, struct msg *msg)
+{
+	struct msg *cur = msg->head;
+	*sorted++ = msg;
+	while (cur) {
+		sorted = put_msg(sorted, cur);
+		cur = cur->next;
+	}
+	return sorted;
+}
+
+static void msgs_sort(struct msg **sorted, struct msg **msgs, int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		if (!msgs[i]->parent)
+			sorted = put_msg(sorted, msgs[i]);
+}
+
+static int sort_mails(struct mbox *mbox, int *mids, int *levs)
+{
+	int n = mbox_len(mbox);
+	struct msg *msgs = malloc(n * sizeof(*msgs));
+	struct msg **sorted_date = malloc(n * sizeof(*sorted_date));
+	struct msg **sorted_id = malloc(n * sizeof(*sorted_id));
+	struct msg **sorted = malloc(n * sizeof(*sorted));
+	int i;
+	if (!msgs || !sorted_date || !sorted_id) {
+		free(msgs);
+		free(sorted_date);
+		free(sorted_id);
+		free(sorted);
+		return 1;
+	}
+	memset(msgs, 0, n * sizeof(*msgs));
+	for (i = 0; i < n; i++) {
+		struct msg *msg = &msgs[i];
+		msg->oidx = i;
+		mbox_get(mbox, i, &msg->msg, &msg->msglen);
+		sorted_id[i] = msg;
+		sorted_date[i] = msg;
+		msg_init(msg);
+	}
+	qsort(sorted_date, n, sizeof(*sorted_date), (void *) msgcmp_date);
+	qsort(sorted_id, n, sizeof(*sorted_id), (void *) msgcmp_id);
+	if (levs)
+		msgs_tree(sorted_date, sorted_id, n);
+	msgs_sort(sorted, sorted_date, n);
+	for (i = 0; i < n; i++)
+		mids[i] = sorted[i]->oidx;
+	if (levs)
+		for (i = 0; i < n; i++)
+			levs[i] = sorted[i]->depth;
+	free(msgs);
+	free(sorted_date);
+	free(sorted_id);
+	free(sorted);
 	return 0;
 }
