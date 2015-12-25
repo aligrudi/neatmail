@@ -64,7 +64,9 @@ static int hexval(int c)
 static void dec_qp(struct sbuf *sb, char *s, char *e)
 {
 	while (s < e) {
-		if (*s == '=' && s + 2 < e) {
+		if (*s == '=' && s[1] == '\n') {
+			s += 2;
+		} else if (*s == '=' && s + 2 < e) {
 			sbuf_chr(sb, (hexval(s[1]) << 4) | hexval(s[2]));
 			s += 3;
 		} else {
