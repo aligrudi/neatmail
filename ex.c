@@ -75,31 +75,30 @@ static int ex_keyword(char *pat)
 	struct sbuf *sb;
 	char *b = pat;
 	char *e = b;
-	regex_t re;
 	sb = sbuf_make();
 	while (*++e) {
 		if (*e == *pat)
 			break;
-		sbuf_chr(sb, (unsigned char) *e);
 		if (*e == '\\' && e[1])
 			e++;
+		sbuf_chr(sb, (unsigned char) *e);
 	}
-	if (sbuf_len(sb)) {
+	if (sbuf_len(sb) && strcmp(kwd, sbuf_buf(sb))) {
 		if (kwd[0])
 			regfree(&kwd_re);
 		snprintf(kwd, sizeof(kwd), "%s", sbuf_buf(sb));
-		if (regcomp(&re, kwd, REG_EXTENDED | REG_ICASE))
+		if (regcomp(&kwd_re, kwd, REG_EXTENDED | REG_ICASE))
 			kwd[0] = '\0';
+		if (kwd[0] == '^' && isalpha((unsigned char) (kwd[1])) &&
+				strchr(kwd, ':')) {
+			int len = strchr(kwd, ':') - kwd;
+			memcpy(kwd_hdr, kwd + 1, len);
+			kwd_hdr[len] = '\0';
+		} else {
+			strcpy(kwd_hdr, "subject:");
+		}
 	}
 	sbuf_free(sb);
-	if (kwd[0] == '^' && isalpha((unsigned char) (kwd[1])) &&
-			strchr(kwd, ':')) {
-		int len = strchr(kwd, ':') - kwd;
-		memcpy(kwd_hdr, kwd + 1, len);
-		kwd_hdr[len] = '\n';
-	} else {
-		strcpy(kwd_hdr, "subject:");
-	}
 	return !kwd[0];
 }
 
@@ -265,7 +264,8 @@ static int ec_g(char *arg)
 	arg++;
 	while (arg[0] && arg[0] != '/')
 		arg++;
-	if (kwd[0]) {
+	if (kwd[0] && arg[0] == '/') {
+		arg++;
 		if (!ex_match(pos))
 			ex_exec(arg);
 		return 0;
