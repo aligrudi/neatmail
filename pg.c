@@ -229,19 +229,19 @@ static void put_reply(struct sbuf *sb, char *from, char *to, char *cc, char *rpl
 		if (to) {
 			to = hdr_val(to);
 			if (n++)
-				sbuf_str(sb, "\n\t");
+				sbuf_str(sb, ",\n\t");
 			sbuf_mem(sb, to, hdr_len(to));
 		}
 		if (rply && from) {
 			from = hdr_val(from);
 			if (n++)
-				sbuf_str(sb, "\n\t");
+				sbuf_str(sb, ",\n\t");
 			sbuf_mem(sb, from, hdr_len(from));
 		}
 		if (cc) {
 			cc = hdr_val(cc);
 			if (n++)
-				sbuf_str(sb, "\n\t");
+				sbuf_str(sb, ",\n\t");
 			sbuf_mem(sb, cc, hdr_len(cc));
 		}
 		sbuf_str(sb, "\n");
