@@ -259,6 +259,7 @@ static void read_body(struct mime *m, struct sbuf *dst, int type)
 	}
 	if (type & ENC_B64) {
 		dec_b64(dst, m->src, end);
+		sbuf_chr(dst, '\n');
 		m->src = end;
 		return;
 	}
