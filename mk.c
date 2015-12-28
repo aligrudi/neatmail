@@ -56,12 +56,11 @@ static int msg_stat(char *msg, long msz)
 	return val[0];
 }
 
-static char *fieldformat(char *msg, long msz, char *hdr, int wid, int lev)
+static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 {
 	struct sbuf *dst;
 	int dst_wid;
 	char *val, *val0, *end;
-	int i;
 	val = msg_dec(msg, msz, hdr[0] == '~' ? hdr + 1 : hdr);
 	if (!val) {
 		val = malloc(1);
@@ -75,14 +74,13 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid, int lev)
 		val++;
 	dst_wid = 0;
 	if (!strcmp("~subject:", hdr)) {
-		if (lev && startswith(val, "re:")) {
-			val += 3;
+		while (startswith(val, "re:") || startswith(val, "fwd:")) {
+			sbuf_chr(dst, '+');
+			dst_wid++;
+			val = strchr(val, ':') + 1;
 			while (val < end && isspace((unsigned char) *val))
 				val++;
 		}
-		dst_wid += lev;
-		for (i = 0; i < lev; i++)
-			sbuf_chr(dst, '.');
 	}
 	while (val < end && (wid <= 0 || dst_wid < wid)) {
 		int l = uc_len(val);
@@ -127,7 +125,7 @@ int mk(char *argv[])
 	int *mids, *levs;
 	struct mbox *mbox;
 	char *ln[4] = {NULL};
-	int i, j;
+	int i, j, k;
 	int first = 0;
 	int sort = 0;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
@@ -177,12 +175,15 @@ int mk(char *argv[])
 				char *fmt = tok;
 				char *hdr = tok;
 				char *val;
+				int wid = atoi(fmt);
 				while (isdigit((unsigned char) *hdr))
 					hdr++;
 				printf("\t");
-				val = fieldformat(msg, msz, hdr,
-						atoi(fmt), levs[i]);
-				printf("%s", val);
+				if (!strcmp("~subject:", hdr))
+					for (k = 0; k < levs[i]; k++, wid--)
+						printf(" ");
+				val = fieldformat(msg, msz, hdr, wid);
+				printf("[%s]", val);
 				free(val);
 			}
 			free(tok);
