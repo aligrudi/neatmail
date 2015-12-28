@@ -124,7 +124,7 @@ int mk(char *argv[])
 {
 	int *mids, *levs;
 	struct mbox *mbox;
-	char *ln[4] = {NULL};
+	char *ln[4] = {"18from:40~subject:"};
 	int i, j, k;
 	int first = 0;
 	int sort = 0;
