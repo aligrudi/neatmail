@@ -67,8 +67,10 @@ int mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
 	return 0;
 }
 
-void mbox_set(struct mbox *mbox, int i, char *msg, long msz)
+int mbox_set(struct mbox *mbox, int i, char *msg, long msz)
 {
+	if (i < 0 || i >= mbox->n)
+		return 1;
 	free(mbox->mod[i]);
 	mbox->mod[i] = malloc(msz + 1);
 	if (mbox->mod[i]) {
@@ -76,6 +78,7 @@ void mbox_set(struct mbox *mbox, int i, char *msg, long msz)
 		memcpy(mbox->mod[i], msg, msz);
 		mbox->mod[i][msz] = '\0';
 	}
+	return 0;
 }
 
 int mbox_len(struct mbox *mbox)
