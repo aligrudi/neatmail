@@ -12,7 +12,7 @@ void mbox_free(struct mbox *mbox);
 int mbox_save(struct mbox *mbox);
 int mbox_copy(struct mbox *mbox, char *path);
 int mbox_len(struct mbox *mbox);
-void mbox_get(struct mbox *mbox, int i, char **msg, long *msz);
+int mbox_get(struct mbox *mbox, int i, char **msg, long *msz);
 void mbox_set(struct mbox *mbox, int i, char *msg, long msz);
 int mbox_ith(char *path, int n, char **msg, long *msz);
 

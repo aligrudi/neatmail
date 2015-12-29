@@ -53,8 +53,10 @@ static int mbox_count(char *s, char *e)
 	return n;
 }
 
-void mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
+int mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
 {
+	if (i < 0 || i >= mbox->n)
+		return 1;
 	if (mbox->mod[i]) {
 		*msg = mbox->mod[i];
 		*msglen = mbox->modlen[i];
@@ -62,6 +64,7 @@ void mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
 		*msg = mbox->msg[i];
 		*msglen = mbox->msglen[i];
 	}
+	return 0;
 }
 
 void mbox_set(struct mbox *mbox, int i, char *msg, long msz)

@@ -109,9 +109,8 @@ static int ex_match(int i)
 	char *hdr;
 	char *buf;
 	int len, ret;
-	if (i < 0 || i >= mbox_len(mbox))
+	if (mbox_get(mbox, i, &msg, &msglen))
 		return 1;
-	mbox_get(mbox, i, &msg, &msglen);
 	hdr = msg_get(msg, msglen, kwd_hdr);
 	if (!hdr)
 		return 1;
@@ -302,10 +301,9 @@ static int ec_stat(char *ec)
 	int i = atoi(ec + 1);
 	char *msg, *mod;
 	long msglen, modlen;
-	if (i < 0 || i >= mbox_len(mbox))
+	if (mbox_get(mbox, i, &msg, &msglen))
 		return 1;
 	pos = i;
-	mbox_get(mbox, pos, &msg, &msglen);
 	val = msg_get(msg, msglen, "status:");
 	if (val) {
 		val += strlen("status:");
