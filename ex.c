@@ -241,6 +241,30 @@ static int ec_ft(char *arg)
 	return 0;
 }
 
+static int ec_threadjoin(char *arg)
+{
+	char *th, *msg, *mod;
+	long thlen, msglen, modlen;
+	struct sbuf *sb;
+	char *id, *id_end;
+	if (mbox_get(mbox, atoi(arg), &th, &thlen))
+		return 1;
+	if (mbox_get(mbox, pos, &msg, &msglen))
+		return 1;
+	id = msg_get(th, thlen, "message-id:");
+	if (!id)
+		return 1;
+	id_end = id + hdrlen(id, th + thlen - id);
+	id = strchr(id, ':') + 1;
+	sb = sbuf_make();
+	sbuf_str(sb, "In-Reply-To:");
+	sbuf_mem(sb, id, id_end - id);
+	if (msg_set(msg, msglen, &mod, &modlen, "in-reply-to:", sbuf_done(sb)))
+		return 1;
+	mbox_set(mbox, pos, mod, modlen);
+	return 0;
+}
+
 static int ec_wr(char *arg)
 {
 	char box[EXLEN];
@@ -290,6 +314,8 @@ static int ex_exec(char *ec)
 		return ec_wr(arg);
 	if (!strcmp("g", cmd))
 		return ec_g(arg);
+	if (!strcmp("tj", cmd))
+		return ec_threadjoin(arg);
 	return 1;
 }
 
