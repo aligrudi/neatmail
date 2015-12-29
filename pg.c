@@ -136,11 +136,11 @@ static void put_date(struct sbuf *sb)
 static void put_id(struct sbuf *sb)
 {
 	char buf[128];
-	char host[32] = "neatmail";
+	char host[32] = "neatmail.host";
 	time_t t;
 	time(&t);
 	strftime(buf, sizeof(buf), "%Y%d%m%H%M%S", localtime(&t));
-	sbuf_printf(sb, "Message-ID: <%s.%s>\n", host, buf);
+	sbuf_printf(sb, "Message-ID: <%s@%s>\n", buf, host);
 }
 
 static void put_agent(struct sbuf *sb)
