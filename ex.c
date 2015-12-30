@@ -278,7 +278,7 @@ static int ec_wr(char *arg)
 
 static int ex_exec(char *ec);
 
-static int ec_g(char *arg)
+static int ec_g(char *arg, int not)
 {
 	while (isspace((unsigned char) *arg))
 		arg++;
@@ -289,7 +289,7 @@ static int ec_g(char *arg)
 		arg++;
 	if (kwd[0] && arg[0] == '/') {
 		arg++;
-		if (!ex_match(pos))
+		if (!ex_match(pos) == !not)
 			ex_exec(arg);
 		return 0;
 	}
@@ -313,7 +313,9 @@ static int ex_exec(char *ec)
 	if (!strcmp("w", cmd))
 		return ec_wr(arg);
 	if (!strcmp("g", cmd))
-		return ec_g(arg);
+		return ec_g(arg, 0);
+	if (!strcmp("g!", cmd))
+		return ec_g(arg, 1);
 	if (!strcmp("tj", cmd))
 		return ec_threadjoin(arg);
 	return 1;
