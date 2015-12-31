@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "mail.h"
 
 #define LEN(a)		(sizeof(a) / sizeof((a)[0]))
@@ -56,8 +57,11 @@ static int msg_stat(char *msg, long msz)
 	return val[0];
 }
 
+static int datedate(char *s);
+
 static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 {
+	char tbuf[128];
 	struct sbuf *dst;
 	int dst_wid;
 	char *val, *val0, *end;
@@ -81,6 +85,12 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 			while (val < end && isspace((unsigned char) *val))
 				val++;
 		}
+	}
+	if (!strcmp("~date:", hdr)) {
+		time_t ts = datedate(val);
+		strftime(tbuf, sizeof(tbuf), "%d %b %Y %H:%M:%S", localtime(&ts));
+		val = tbuf;
+		end = strchr(tbuf, '\0');
 	}
 	while (val < end && (wid <= 0 || dst_wid < wid)) {
 		int l = uc_len(val);
@@ -276,6 +286,37 @@ static int fromdate(char *s)
 	year = atoi(tok);
 	return ((year - 1970) * 400 + mon * 31 + day) * 24 * 3600 +
 		hour * 3600 + min * 60 + sec;
+}
+
+static int datedate(char *s)
+{
+	char tok[128];
+	struct tm tm = {0};
+	int ts, tz, i;
+	/* parsing "Fri, 25 Dec 2015 20:26:18 +0100" */
+	s = readtok(s, tok);		/* day of week */
+	s = readtok(s, tok);		/* day of month */
+	tm.tm_mday = atoi(tok);
+	s = readtok(s, tok);		/* month name */
+	for (i = 0; i < LEN(months); i++)
+		if (!strcmp(months[i], tok))
+			tm.tm_mon = i;
+	s = readtok(s, tok);		/* year */
+	tm.tm_year = atoi(tok) - 1900;
+	s = readtok(s, tok);		/* hour */
+	tm.tm_hour = atoi(tok);
+	s = readtok(s, tok);		/* minute */
+	tm.tm_min = atoi(tok);
+	s = readtok(s, tok);		/* seconds */
+	tm.tm_sec = atoi(tok);
+	s = readtok(s, tok);		/* time-zone */
+	tz = atoi(tok);
+	ts = mktime(&tm);
+	if (tz >= 0)
+		ts -= (tz / 100) * 3600 + (tz % 100) * 60;
+	else
+		ts += (-tz / 100) * 3600 + (-tz % 100) * 60;
+	return ts;
 }
 
 static struct msg *msg_byid(struct msg **msgs, int n, char *id, int len)
