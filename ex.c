@@ -231,10 +231,12 @@ static int ec_hd(char *arg)
 
 static int ec_ft(char *arg)
 {
+	char cmd[EXLEN];
 	char *msg, *mod;
 	long msglen, modlen;
+	arg = ex_arg(arg, cmd);
 	mbox_get(mbox, pos, &msg, &msglen);
-	if (xpipe(arg, msg, msglen, &mod, &modlen))
+	if (xpipe(cmd, msg, msglen, &mod, &modlen))
 		return 1;
 	mbox_set(mbox, pos, mod, modlen);
 	free(mod);
