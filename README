@@ -1,4 +1,55 @@
 NEATMAIL
 ========
 
-Neatmail is a mail client.
+Neatmail is a noninteractive mail client.  It generates a listing of
+the messages in a mailbox in mbox format and executes a list of
+ex-like commands on it.
+
+Neatmail provides the following commands:
+
+* mk: generate a listing of the mails in an mbox.
+* ex: execute the specified commands on an mbox.
+* pg: page a message in an mbox.
+* ns: check for new messages among several mboxes.
+
+The ex command reads a list of commands from the standard input and
+executes them on a given mbox file.  It ignores all input lines except
+those beginning with a colon or a capital letter.  Lines beginning
+with a capital letter like "R100 ...", change the value of the status
+header of the message whose number follows the letter.  It also marks
+the current message.  Lines beginning with a colon are named commands.
+The list of named commands are as follows:
+
+* rm: remove the current message.
+* cp: copy the current message to the given mbox.
+* mv: move the current message to the given mbox.
+* hd, set: change the value of the given header of the current message.
+* ft, filt: filter the message through the given command.
+* w: write the mbox.
+* g, g!: ex-like global command.
+* tj: join threads by modifying "Reply-To" headers.
+
+These commands act on the current message by default (if applicable),
+but different messages may be specified using ex-like addresses.  For
+instance, "2,5rm" removes messages 2 through 5.  Addresses may contain
+search statements, like "/pattern/rm", in which the pattern is a POSIX
+extended regular expression (the same applies to global command
+patterns like "%g/pattern/rm").  Search patterns are matched in the
+subject field of message headers, except when the pattern is "^field:
+value", in which it is matched against the specified header field
+instead.
+
+SUGGESTED USAGE
+===============
+
+Generate a message listing (see mk options):
+$ neatmail mk -st -r inbox >inbox.nm
+
+Open inbox.nm in an editor, change the status field of
+messages and append ex commands.
+
+Page, reply, or forward messages (see pg options):
+$ neatmail pg -m -h from:subject:to:cc: inbox 23 >mail
+
+Execute the commands specified in inbox.nm:
+$ (cat inbox.nm; echo ":w") | neatmail ex inbox
