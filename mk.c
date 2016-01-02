@@ -110,6 +110,24 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 	return sbuf_done(dst);
 }
 
+static void mk_sum(struct mbox *mbox)
+{
+	int stats[128] = {0};
+	char *msg;
+	long msz;
+	int i, st;
+	for (i = 0; i < mbox_len(mbox); i++) {
+		mbox_get(mbox, i, &msg, &msz);
+		st = msg_stat(msg, msz);
+		if (st >= 'A' && st <= 'Z')
+			stats[st - 'A']++;
+	}
+	for (i = 0; i < LEN(stats); i++)
+		if (stats[i])
+			fprintf(stderr, "%c%04d ", 'A' + i, stats[i]);
+	fprintf(stderr, "\n");
+}
+
 static char *segment(char *d, char *s, int m)
 {
 	char *r = strchr(s, m);
@@ -126,6 +144,7 @@ static char *usage =
 	"   -1 fmt \tmessage second line format\n"
 	"   -sd    \tsort by receiving date\n"
 	"   -st    \tsort by threads\n"
+	"   -r     \tprint a summary of status flags\n"
 	"   -f n   \tthe first message to list\n";
 
 static int sort_mails(struct mbox *mbox, int *mids, int *levs);
@@ -136,11 +155,16 @@ int mk(char *argv[])
 	struct mbox *mbox;
 	char *ln[4] = {"18from:40~subject:"};
 	int i, j, k;
-	int first = 0;
+	int beg = 0;
 	int sort = 0;
+	int sum = 0;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'f') {
-			first = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
+			beg = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
+			continue;
+		}
+		if (argv[i][1] == 'r') {
+			sum = 1;
 			continue;
 		}
 		if (argv[i][1] == 's') {
@@ -171,7 +195,7 @@ int mk(char *argv[])
 		levs[i] = 0;
 	if (sort)
 		sort_mails(mbox, mids, sort == 2 ? levs : NULL);
-	for (i = first; i < mbox_len(mbox); i++) {
+	for (i = beg; i < mbox_len(mbox); i++) {
 		char *msg;
 		long msz;
 		mbox_get(mbox, mids[i], &msg, &msz);
@@ -202,6 +226,8 @@ int mk(char *argv[])
 	}
 	free(mids);
 	free(levs);
+	if (sum)
+		mk_sum(mbox);
 	mbox_free(mbox);
 	return 0;
 }
