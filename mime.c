@@ -123,7 +123,6 @@ struct mime {
 	int part[MAXPARTS];
 	char bound[MAXPARTS][BOUNDLEN];
 	char *src;
-	char *dst;
 	char *end;
 };
 
@@ -272,6 +271,7 @@ int msg_demime(char *msg, long msglen, char **mod, long *modlen)
 	struct mime m;
 	m.src = msg;
 	m.end = msg + msglen;
+	m.depth = 0;
 	while ((m.depth && m.src < m.end) || m.src == msg) {
 		int type = read_hdrs(&m, dst);
 		read_body(&m, dst, type);
