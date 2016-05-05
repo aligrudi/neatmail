@@ -205,6 +205,8 @@ int mbox_save(struct mbox *mbox)
 	long newlen;
 	if (!mbox_modified(mbox))
 		return 0;
+	while (i < mbox->n && !mbox->mod[i])
+		off += mbox->msglen[i++];
 	fd = open(mbox->path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	newlen = filesize(fd) - mbox->len;
 	if (newlen > 0) {
@@ -212,15 +214,18 @@ int mbox_save(struct mbox *mbox)
 		lseek(fd, mbox->len, 0);
 		xread(fd, newbuf, newlen);
 	}
-	while (i < mbox->n && !mbox->mod[i])
-		off += mbox->msglen[i++];
-	lseek(fd, off, 0);
+	ftruncate(fd, lseek(fd, off, 0));
 	for (; i < mbox->n; i++) {
 		char *msg = mbox->mod[i] ? mbox->mod[i] : mbox->msg[i];
 		long len = mbox->mod[i] ? mbox->modlen[i] : mbox->msglen[i];
+		lseek(fd, 0, 2);
 		xwrite(fd, msg, len);
 	}
-	ftruncate(fd, lseek(fd, 0, 1));
+	if (newlen > 0) {
+		lseek(fd, 0, 2);
+		xwrite(fd, newbuf, newlen);
+		free(newbuf);
+	}
 	close(fd);
 	return newlen;
 }
