@@ -267,6 +267,27 @@ static int ec_threadjoin(char *arg)
 	return 0;
 }
 
+static int ec_chop(char *arg)
+{
+	char *msg, *mod;
+	long msglen, modlen;
+	struct sbuf *sb;
+	long newlen = atoi(arg);
+	if (newlen < 1024)
+		return 1;
+	if (mbox_get(mbox, pos, &msg, &msglen))
+		return 1;
+	while (newlen < msglen && msg[newlen] != '\n')
+		newlen++;
+	sb = sbuf_make();
+	sbuf_mem(sb, msg, newlen);
+	sbuf_str(sb, "\nCHOPPED...\n\n");
+	modlen = sbuf_len(sb);
+	mod = sbuf_done(sb);
+	mbox_set(mbox, pos, mod, modlen);
+	return 0;
+}
+
 static int ec_wr(char *arg)
 {
 	char box[EXLEN];
@@ -320,6 +341,8 @@ static int ex_exec(char *ec)
 		return ec_g(arg, 1);
 	if (!strcmp("tj", cmd))
 		return ec_threadjoin(arg);
+	if (!strcmp("ch", cmd) || !strcmp("chop", cmd))
+		return ec_chop(arg);
 	return 1;
 }
 
