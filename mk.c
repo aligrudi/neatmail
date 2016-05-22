@@ -92,6 +92,13 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 		val = tbuf;
 		end = strchr(tbuf, '\0');
 	}
+	if (!strcmp("~size:", hdr)) {
+		char fmt[16];
+		sprintf(fmt, "%%%dd", wid);
+		snprintf(tbuf, sizeof(tbuf), fmt, msz);
+		val = tbuf;
+		end = strchr(tbuf, '\0');
+	}
 	while (val < end && (wid <= 0 || dst_wid < wid)) {
 		int l = uc_len(val);
 		if (l == 1) {
