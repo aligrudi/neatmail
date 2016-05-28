@@ -376,7 +376,7 @@ static void msgs_tree(struct msg **all, struct msg **sorted_id, int n)
 		if (!msg->rply)
 			continue;
 		dad = msg_byid(sorted_id, n, msg->rply, msg->rply_len);
-		if (!dad)
+		if (!dad || dad >= msg)
 			continue;
 		msg->parent = dad;
 		msg->depth = dad->depth + 1;
