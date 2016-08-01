@@ -92,6 +92,7 @@ int xpipe(char *cmd, char *ibuf, long ilen, char **obuf, long *olen)
 		return 1;
 	if (obuf)
 		sb = sbuf_make();
+	fcntl(ifd, F_SETFL, fcntl(ifd, F_GETFL, 0) | O_NONBLOCK);
 	fds[0].fd = ofd;
 	fds[0].events = POLLIN;
 	fds[1].fd = ifd;
