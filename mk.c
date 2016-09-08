@@ -283,9 +283,14 @@ static char *months[] = {
 
 static char *readtok(char *s, char *d)
 {
-	while (*s == ' ' || *s == ':')
-		s++;
-	while (!strchr(" \t\r\n:", *s))
+	while (*s == ' ' || *s == '\t' || *s == '\n' || *s == '(' || *s == ':') {
+		if (*s == '(')
+			while (*s && *s != ')')
+				s++;
+		if (*s)
+			s++;
+	}
+	while (*s != ' ' && *s != '\t' && *s != '\n' && *s != '(' && *s != ':')
 		*d++ = *s++;
 	*d = '\0';
 	return s;
@@ -294,7 +299,7 @@ static char *readtok(char *s, char *d)
 static int fromdate(char *s)
 {
 	char tok[128];
-	int year, mon, day, hour, min, sec;
+	int year, mon, day, hour, min, sec = 0;
 	int i;
 	/* parsing "From ali Tue Apr 16 20:18:40 2013" */
 	s = readtok(s, tok);		/* From */
@@ -311,9 +316,11 @@ static int fromdate(char *s)
 	hour = atoi(tok);
 	s = readtok(s, tok);		/* minute */
 	min = atoi(tok);
-	s = readtok(s, tok);		/* seconds */
-	sec = atoi(tok);
-	s = readtok(s, tok);		/* year */
+	s = readtok(s, tok);		/* seconds (optional) */
+	if (sec < 60) {
+		sec = atoi(tok);
+		s = readtok(s, tok);	/* year */
+	}
 	year = atoi(tok);
 	return ((year - 1970) * 400 + mon * 31 + day) * 24 * 3600 +
 		hour * 3600 + min * 60 + sec;
@@ -325,8 +332,9 @@ static int datedate(char *s)
 	struct tm tm = {0};
 	int ts, tz, i;
 	/* parsing "Fri, 25 Dec 2015 20:26:18 +0100" */
-	s = readtok(s, tok);		/* day of week */
-	s = readtok(s, tok);		/* day of month */
+	s = readtok(s, tok);		/* day of week (optional) */
+	if (strchr(tok, ','))
+		s = readtok(s, tok);	/* day of month */
 	tm.tm_mday = atoi(tok);
 	s = readtok(s, tok);		/* month name */
 	for (i = 0; i < LEN(months); i++)
@@ -338,9 +346,11 @@ static int datedate(char *s)
 	tm.tm_hour = atoi(tok);
 	s = readtok(s, tok);		/* minute */
 	tm.tm_min = atoi(tok);
-	s = readtok(s, tok);		/* seconds */
-	tm.tm_sec = atoi(tok);
-	s = readtok(s, tok);		/* time-zone */
+	s = readtok(s, tok);		/* seconds (optional) */
+	if (tok[0] != '+' && tok[0] != '-') {
+		tm.tm_sec = atoi(tok);
+		s = readtok(s, tok);	/* time-zone */
+	}
 	tz = atoi(tok);
 	ts = mktime(&tm);
 	if (tz >= 0)
@@ -376,15 +386,15 @@ static void msgs_tree(struct msg **all, struct msg **sorted_id, int n)
 		if (!msg->rply)
 			continue;
 		dad = msg_byid(sorted_id, n, msg->rply, msg->rply_len);
-		if (!dad || dad >= msg)
-			continue;
-		msg->parent = dad;
-		msg->depth = dad->depth + 1;
-		if (!msg->parent->head)
-			msg->parent->head = msg;
-		else
-			msg->parent->tail->next = msg;
-		msg->parent->tail = msg;
+		if (dad && dad->date < msg->date) {
+			msg->parent = dad;
+			msg->depth = dad->depth + 1;
+			if (!msg->parent->head)
+				msg->parent->head = msg;
+			else
+				msg->parent->tail->next = msg;
+			msg->parent->tail = msg;
+		}
 	}
 }
 
@@ -392,6 +402,7 @@ static void msg_init(struct msg *msg)
 {
 	char *id_hdr = msg_get(msg->msg, msg->msglen, "Message-ID:");
 	char *rply_hdr = msg_get(msg->msg, msg->msglen, "In-Reply-To:");
+	char *date_hdr = msg_get(msg->msg, msg->msglen, "Date:");
 	char *end = msg->msg + msg->msglen;
 	if (id_hdr) {
 		int len = hdrlen(id_hdr, end - id_hdr);
@@ -415,7 +426,7 @@ static void msg_init(struct msg *msg)
 			msg->rply_len = end - beg;
 		}
 	}
-	msg->date = fromdate(msg->msg);
+	msg->date = date_hdr ? datedate(date_hdr + 5) : fromdate(msg->msg);
 }
 
 static struct msg **put_msg(struct msg **sorted, struct msg *msg)
