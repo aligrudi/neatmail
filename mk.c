@@ -290,7 +290,7 @@ static char *readtok(char *s, char *d)
 		if (*s)
 			s++;
 	}
-	while (*s != ' ' && *s != '\t' && *s != '\n' && *s != '(' && *s != ':')
+	while (*s && *s != ' ' && *s != '\t' && *s != '\n' && *s != '(' && *s != ':')
 		*d++ = *s++;
 	*d = '\0';
 	return s;
