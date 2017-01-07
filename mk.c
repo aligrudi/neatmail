@@ -44,15 +44,15 @@ static char *msg_dec(char *msg, long msz, char *hdr)
 	return ret;
 }
 
-static int msg_stat(char *msg, long msz)
+static int msg_stat(char *msg, long msz, int pos, int def)
 {
 	char *val = msg_get(msg, msz, "status:");
 	if (!val)
-		return 'N';
+		return def;
 	val += strlen("status:");
-	while (isspace((unsigned char) val[0]))
+	while (val + pos < msg + msz && isspace((unsigned char) val[0]))
 		val++;
-	return val[0];
+	return isalpha((unsigned char) val[pos]) ? val[pos] : def;
 }
 
 static int datedate(char *s);
@@ -123,7 +123,7 @@ static void mk_sum(struct mbox *mbox)
 	int i, st;
 	for (i = 0; i < mbox_len(mbox); i++) {
 		mbox_get(mbox, i, &msg, &msz);
-		st = msg_stat(msg, msz);
+		st = msg_stat(msg, msz, 0, 'N');
 		if (st >= 'A' && st <= 'Z')
 			stats[st - 'A']++;
 	}
@@ -204,7 +204,8 @@ int mk(char *argv[])
 		char *msg;
 		long msz;
 		mbox_get(mbox, mids[i], &msg, &msz);
-		printf("%c%04d", msg_stat(msg, msz), mids[i]);
+		printf("%c%c%03d", msg_stat(msg, msz, 0, 'N'),
+				msg_stat(msg, msz, 1, '0'), mids[i]);
 		for (j = 0; ln[j]; j++) {
 			char *cln = ln[j];
 			char *tok = malloc(strlen(ln[j]) + 1);

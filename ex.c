@@ -350,8 +350,11 @@ static int ec_stat(char *ec)
 {
 	char *val;
 	char newval[16];
-	char c = ec[0];
-	int i = atoi(ec + 1);
+	int c0 = (unsigned char) ec[0];
+	int c1 = isalpha((unsigned char) ec[1]) ? ec[1] : 0;
+	int s0 = 'N';
+	int s1 = 0;
+	int i = atoi(ec + 1 + (c1 != 0));
 	char *msg, *mod;
 	long msglen, modlen;
 	if (mbox_get(mbox, i, &msg, &msglen))
@@ -360,12 +363,17 @@ static int ec_stat(char *ec)
 	val = msg_get(msg, msglen, "status:");
 	if (val) {
 		val += strlen("status:");
-		while (isspace((unsigned char) val[0]))
+		while (val + 1 < msg + msglen && isspace((unsigned char) val[0]))
 			val++;
+		s0 = !isspace(val[0]) ? (unsigned char) val[0] : s0;
+		s1 = !isspace(val[1]) ? (unsigned char) val[1] : s1;
 	}
-	if ((!val && c == 'N') || (val && val[0] == c))
+	if (s0 == c0 && s1 == c1)
 		return 0;
-	sprintf(newval, "Status: %c\n", c);
+	if (c1)
+		sprintf(newval, "Status: %c%c\n", c0, c1);
+	else
+		sprintf(newval, "Status: %c\n", c0);
 	if (msg_set(msg, msglen, &mod, &modlen, "status:", newval))
 		return 1;
 	mbox_set(mbox, pos, mod, modlen);
@@ -390,7 +398,7 @@ int ex(char *argv[])
 	}
 	while (fgets(ec, sizeof(ec), stdin)) {
 		char *cur = loc;
-		if (isupper((unsigned char) ec[0]))
+		if (isupper((unsigned char) ec[0]) && ec[1])
 			ec_stat(ec);
 		if (ec[0] != ':')
 			continue;
