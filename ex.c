@@ -273,10 +273,14 @@ static int ec_chop(char *arg)
 	long msglen, modlen;
 	struct sbuf *sb;
 	long newlen = atoi(arg);
-	if (newlen < 1024)
-		return 1;
+	long beg = 0;
 	if (mbox_get(mbox, pos, &msg, &msglen))
 		return 1;
+	while (beg + 2 < msglen && (msg[beg] != '\n' || msg[beg + 1] != '\n'))
+		beg++;
+	beg++;
+	if (newlen < beg)
+		newlen = beg;
 	while (newlen < msglen && msg[newlen] != '\n')
 		newlen++;
 	sb = sbuf_make();
