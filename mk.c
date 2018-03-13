@@ -219,9 +219,13 @@ int mk(char *argv[])
 				while (isdigit((unsigned char) *hdr))
 					hdr++;
 				printf("\t");
-				if (!strcmp("~subject:", hdr))
-					for (k = 0; k < levs[i]; k++, wid--)
-						printf(" ");
+				if (!strcmp("~subject:", hdr)) {
+					for (k = 0; k < levs[i]; k++)
+						if (wid < 0 || k + 1 < wid)
+							printf(" ");
+					if (wid > 0)
+						wid = wid > k ? wid - k : 1;
+				}
 				val = fieldformat(msg, msz, hdr, wid);
 				printf("[%s]", val);
 				free(val);
