@@ -146,7 +146,7 @@ int pg(char *argv[])
 		xwrite(1, msg, msglen);
 		free(msg);
 	}
-	return 0;
+	return addr < 0;
 }
 
 static void put_from_(struct sbuf *sb)

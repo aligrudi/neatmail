@@ -56,12 +56,12 @@ int main(int argc, char *argv[])
 	if (!argv[1])
 		printf("%s", usage);
 	if (argv[1] && !strcmp("mk", argv[1]))
-		mk(argv + 2);
+		return mk(argv + 2);
 	if (argv[1] && !strcmp("ex", argv[1]))
-		ex(argv + 2);
+		return ex(argv + 2);
 	if (argv[1] && !strcmp("pg", argv[1]))
-		pg(argv + 2);
+		return pg(argv + 2);
 	if (argv[1] && !strcmp("ns", argv[1]))
-		ns(argv + 2);
+		return ns(argv + 2);
 	return 0;
 }
