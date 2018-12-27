@@ -47,10 +47,23 @@ Generate a message listing (see mk options):
 $ neatmail mk -st -r inbox >inbox.nm
 
 Open inbox.nm in an editor, change the status field of
-messages and append ex commands.
+messages, and append ex commands.
 
 Page, reply, or forward messages (see pg options):
 $ neatmail pg -m -h from:subject:to:cc: inbox 23 >mail
 
 Execute the commands specified in inbox.nm:
 $ (cat inbox.nm; echo ":w") | neatmail ex inbox
+
+It is more convenient to place these commands in a script.
+
+LARGE MBOXES
+============
+
+An mbox can gradually get very large, particularly because of messages
+with large attachments.  This makes Neatmail commands slow.  To reduce
+the size of such mboxes, I copy large messages to a separate mbox (:cp
+ex command) and chop them (:chop ex command).  When I need one of
+these messages, I use the chopped message to obtain its message ID and
+use that to page the original message in the other mbox.  This, of
+course, I do in a script.
