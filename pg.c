@@ -41,8 +41,39 @@ static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hd
 	return 0;
 }
 
+/* obtain a message from an mbox by its message id */
+static int mbox_mid(char *path, char *mid)
+{
+	struct mbox *mbox = mbox_open(path);
+	int ret = -1;
+	int i;
+	if (!mbox)
+		return -1;
+	for (i = 0; i < mbox_len(mbox); i++) {
+		char *id_hdr;
+		char *msg = NULL;
+		long msglen;
+		if (mbox_get(mbox, i, &msg, &msglen))
+			continue;
+		id_hdr = msg_get(msg, msglen, "Message-ID:");
+		if (id_hdr) {
+			int len = hdrlen(id_hdr, (msg + msglen) - id_hdr);
+			char *beg = memchr(id_hdr, '<', len);
+			char *end = beg ? memchr(id_hdr, '>', len) : NULL;
+			if (!beg || !end || beg > end)
+				continue;
+			beg++;
+			if (strlen(mid) == end - beg &&
+					!memcmp(mid, beg, end - beg))
+				ret = i;
+		}
+	}
+	mbox_free(mbox);
+	return ret;
+}
+
 static char *usage =
-	"usage: neatmail pg [options] mbox msg\n\n"
+	"usage: neatmail pg [options] mbox [msg or =msg_id]\n\n"
 	"options:\n"
 	"   -h hdrs \tthe list of headers to include\n"
 	"   -m      \tdecode mime message\n"
@@ -52,7 +83,7 @@ static char *usage =
 
 int pg(char *argv[])
 {
-	char *mbox, *addr;
+	char *mbox;
 	char *msg, *mod;
 	char *hdrs = NULL;
 	long msglen, modlen;
@@ -60,6 +91,7 @@ int pg(char *argv[])
 	int reply = 0;
 	int forward = 0;
 	int newmsg = 0;
+	int addr;
 	int i;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'm')
@@ -86,8 +118,11 @@ int pg(char *argv[])
 		return 1;
 	}
 	mbox = argv[i];
-	addr = argv[i + 1];
-	if (!mbox_ith(mbox, atoi(addr), &msg, &msglen)) {
+	if (argv[i + 1][0] == '=')
+		addr = mbox_mid(mbox, argv[i + 1] + 1);
+	else
+		addr = atoi(argv[i + 1]);
+	if (addr >= 0 && !mbox_ith(mbox, addr, &msg, &msglen)) {
 		if (demime && !msg_demime(msg, msglen, &mod, &modlen)) {
 			free(msg);
 			msg = mod;
