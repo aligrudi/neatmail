@@ -3,6 +3,7 @@
 int ex(char *argv[]);
 int mk(char *argv[]);
 int pg(char *argv[]);
+int me(char *argv[]);
 
 struct mbox;
 struct mail;
