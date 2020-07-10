@@ -204,7 +204,7 @@ int mk(char *argv[])
 		char *msg;
 		long msz;
 		mbox_get(mbox, mids[i], &msg, &msz);
-		printf("%c%c%03d", msg_stat(msg, msz, 0, 'N'),
+		printf("%c%c%04d", msg_stat(msg, msz, 0, 'N'),
 				msg_stat(msg, msz, 1, '0'), mids[i]);
 		for (j = 0; ln[j]; j++) {
 			char *cln = ln[j];
