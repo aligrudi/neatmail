@@ -17,6 +17,7 @@ struct mbox {
 	long *msglen;	/* message lengths */
 	char **mod;	/* modified messages */
 	long *modlen;	/* modified message lengths */
+	int sz;		/* size of arrays */
 	char *buf;	/* mbox buffer */
 	long len;	/* buf len */
 	int n;		/* number of messages */
@@ -43,14 +44,6 @@ static char *mbox_from_(char *s, char *e)
 		s = r && r + 7 < e ? r + 1 : NULL;
 	}
 	return NULL;
-}
-
-static int mbox_count(char *s, char *e)
-{
-	int n = 0;
-	while ((s = mbox_from_(s, e)))
-		n++, s++;
-	return n;
 }
 
 int mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
@@ -86,17 +79,40 @@ int mbox_len(struct mbox *mbox)
 	return mbox->n;
 }
 
+static void *mextend(void *old, long oldsz, long newsz, long memsz)
+{
+	void *new = malloc(newsz * memsz);
+	memcpy(new, old, oldsz * memsz);
+	memset(new + oldsz * memsz, 0, (newsz - oldsz) * memsz);
+	free(old);
+	return new;
+}
+
+static int mbox_extend(struct mbox *mbox, int cnt)
+{
+	mbox->sz = mbox->sz + cnt;
+	mbox->msg = mextend(mbox->msg, mbox->n, mbox->sz, sizeof(mbox->msg[0]));
+	mbox->msglen = mextend(mbox->msglen, mbox->n, mbox->sz, sizeof(mbox->msglen[0]));
+	mbox->mod = mextend(mbox->mod, mbox->n, mbox->sz, sizeof(mbox->mod[0]));
+	mbox->modlen = mextend(mbox->modlen, mbox->n, mbox->sz, sizeof(mbox->modlen[0]));
+	if (!mbox->msg || !mbox->msglen || !mbox->mod || !mbox->modlen)
+		return 1;
+	return 0;
+}
+
 static int mbox_mails(struct mbox *mbox, char *s, char *e)
 {
 	int i;
 	s = mbox_from_(s, e);
 	for (i = 0; s && s < e; i++) {
 		char *r = s;
+		if (mbox->n == mbox->sz)
+			mbox_extend(mbox, mbox->sz ? mbox->sz : 256);
 		mbox->msg[i] = s;
 		s = mbox_from_(s + 6, e);
 		mbox->msglen[i] = s ? s - r : mbox->buf + mbox->len - r;
+		mbox->n++;
 	}
-	mbox->n = i;
 	return 0;
 }
 
@@ -120,14 +136,6 @@ static int mbox_read(struct mbox *mbox)
 	mbox->buf[mbox->len] = '\0';
 	close(fd);
 	set_atime(mbox->path);		/* update mbox access time */
-	mbox->n = mbox_count(mbox->buf, mbox->buf + mbox->len);
-	mbox->msg = malloc(mbox->n * sizeof(mbox->msg[0]));
-	mbox->msglen = malloc(mbox->n * sizeof(mbox->msglen[0]));
-	mbox->mod = malloc(mbox->n * sizeof(mbox->mod[0]));
-	mbox->modlen = malloc(mbox->n * sizeof(mbox->modlen[0]));
-	memset(mbox->mod, 0, mbox->n * sizeof(mbox->mod[0]));
-	if (!mbox->msg || !mbox->msglen || !mbox->mod || !mbox->modlen)
-		return 1;
 	if (mbox_mails(mbox, mbox->buf, mbox->buf + mbox->len))
 		return 1;
 	return 0;
