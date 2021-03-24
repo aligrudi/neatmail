@@ -143,14 +143,15 @@ static char *segment(char *d, char *s, int m)
 }
 
 static char *usage =
-	"usage: neatmail mk [options] mbox\n\n"
+	"usage: neatmail mk [options] [mbox]\n\n"
 	"options:\n"
-	"   -0 fmt \tmessage first line format (e.g., 20from:40subject:)\n"
-	"   -1 fmt \tmessage second line format\n"
-	"   -sd    \tsort by receiving date\n"
-	"   -st    \tsort by threads\n"
-	"   -r     \tprint a summary of status flags\n"
-	"   -f n   \tthe first message to list\n";
+	"   -b path \tmbox path\n"
+	"   -0 fmt  \tmessage first line format (e.g., 20from:40subject:)\n"
+	"   -1 fmt  \tmessage second line format\n"
+	"   -sd     \tsort by receiving date\n"
+	"   -st     \tsort by threads\n"
+	"   -r      \tprint a summary of status flags\n"
+	"   -f n    \tthe first message to list\n";
 
 static int sort_mails(struct mbox *mbox, int *mids, int *levs);
 
@@ -163,6 +164,7 @@ int mk(char *argv[])
 	int beg = 0;
 	int sort = 0;
 	int sum = 0;
+	char *path = NULL;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'f') {
 			beg = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
@@ -177,19 +179,24 @@ int mk(char *argv[])
 			sort = t == 't' ? 2 : 1;
 			continue;
 		}
+		if (argv[i][1] == 'b') {
+			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+			continue;
+		}
 		if (argv[i][1] == '0' || argv[i][1] == '1') {
 			int idx = argv[i][1] - '0';
 			ln[idx] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
 	}
-	if (!argv[i]) {
+	if (!path && !argv[i]) {
 		printf("%s", usage);
 		return 1;
 	}
-	mbox = mbox_open(argv[i]);
+	path = argv[i] ? argv[i] : path;
+	mbox = mbox_open(path);
 	if (!mbox) {
-		fprintf(stderr, "neatmail: cannot open <%s>\n", argv[i]);
+		fprintf(stderr, "neatmail: cannot open <%s>\n", path);
 		return 1;
 	}
 	mids = malloc(mbox_len(mbox) * sizeof(mids[0]));
