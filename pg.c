@@ -232,7 +232,6 @@ static char *fileread(char *path, int *len)
 	return sbuf_done(sb);
 }
 
-/* just in case basename() is not available */
 static char *filename(char *path)
 {
 	char *sl = strrchr(path, '/');
@@ -250,7 +249,7 @@ static void put_body(struct sbuf *sb, char *body)
 	} else {
 		int i;
 		sbuf_printf(sb, "Content-Type: multipart/mixed; boundary=%s\n", MBOUNDARY);
-		sbuf_printf(sb, "\n\n");
+		sbuf_printf(sb, "\nMulti-part MIME message.\n");
 		sbuf_printf(sb, "--%s\n", MBOUNDARY);
 		sbuf_printf(sb, "Content-Type: text/plain; charset=utf-8\n");
 		sbuf_printf(sb, "Content-Transfer-Encoding: 8bit\n");
