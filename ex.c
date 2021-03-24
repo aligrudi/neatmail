@@ -391,13 +391,19 @@ int ex(char *argv[])
 	char loc[EXLEN];
 	int beg, end, i;
 	char *cmd;
+	char *path = NULL;
 	if (!argv[0]) {
 		printf("usage: neatmail ex mbox <cmds\n");
 		return 1;
 	}
-	mbox = mbox_open(argv[0]);
+	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
+		if (argv[i][1] == 'b')
+			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+	}
+	path = argv[i] ? argv[i] : path;
+	mbox = mbox_open(path);
 	if (!mbox) {
-		fprintf(stderr, "neatmail: cannot open <%s>\n", argv[0]);
+		fprintf(stderr, "neatmail: cannot open <%s>\n", path);
 		return 1;
 	}
 	while (fgets(ec, sizeof(ec), stdin)) {
