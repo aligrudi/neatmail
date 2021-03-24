@@ -34,6 +34,26 @@ static int b64_dec(char *d, char *s)
 	return 3 - (s[1] == '=') - (s[2] == '=') - (s[3] == '=');
 }
 
+char *base64(char *s, int len)
+{
+	struct sbuf *sb = sbuf_make();
+	int i;
+	for (i = 0; i < len; i += 3) {
+		unsigned c0 = (unsigned char) s[i];
+		unsigned c1 = i + 1 < len ? (unsigned char) s[i + 1] : 0;
+		unsigned c2 = i + 2 < len ? (unsigned char) s[i + 2] : 0;
+		unsigned v = (c0 << 16) | (c1 << 8) | c2;
+		if (i > 0 && i % (19 * 3) == 0)
+			sbuf_printf(sb, "\n");
+		sbuf_printf(sb, "%c", b64_ch[(v >> 18) & 0x3f]);
+		sbuf_printf(sb, "%c", b64_ch[(v >> 12) & 0x3f]);
+		sbuf_printf(sb, "%c", i + 1 < len ? b64_ch[(v >> 6) & 0x3f] : '=');
+		sbuf_printf(sb, "%c", i + 2 < len ? b64_ch[v & 0x3f] : '=');
+	}
+	sbuf_printf(sb, "\n");
+	return sbuf_done(sb);
+}
+
 static void dec_b64(struct sbuf *sb, char *s, char *e)
 {
 	if (!b64_val['B'])

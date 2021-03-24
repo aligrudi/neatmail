@@ -1,11 +1,19 @@
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <time.h>
 #include "mail.h"
 
 #define USERAGENT	"neatmail (git://repo.or.cz/neatmail.git)"
+#define MBOUNDARY	"neatmail-boundary"
+#define NPARTS		16
+
+static char *parts[NPARTS];
+static int parts_n;
 
 static void msg_new(char **msg, long *msglen);
 static int msg_reply(char *msg, long msglen, char **mod, long *modlen);
@@ -79,7 +87,8 @@ static char *usage =
 	"   -m      \tdecode mime message\n"
 	"   -r      \tgenerate a reply\n"
 	"   -f      \tgenerate a forward\n"
-	"   -n      \tgenerate a new message\n";
+	"   -n      \tgenerate a new message\n"
+	"   -a file \tadd an attachment\n";
 
 int pg(char *argv[])
 {
@@ -104,6 +113,11 @@ int pg(char *argv[])
 			forward = 1;
 		if (argv[i][1] == 'h') {
 			hdrs = argv[i][2] ? argv[i] + 2 : argv[++i];
+			continue;
+		}
+		if (argv[i][1] == 'a') {
+			if (parts_n < NPARTS)
+				parts[parts_n++] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
 	}
@@ -183,6 +197,72 @@ static void put_agent(struct sbuf *sb)
 	sbuf_printf(sb, "User-Agent: " USERAGENT "\n");
 }
 
+static char *fileread(char *path, int *len)
+{
+	int fd = open(path, O_RDONLY);
+	char buf[4096];
+	struct sbuf *sb;
+	if (fd < 0)
+		return NULL;
+	sb = sbuf_make();
+	while (1) {
+		int ret = read(fd, buf, sizeof(buf));
+		if (ret == -1 && (errno == EAGAIN || errno == EINTR))
+			continue;
+		if (ret <= 0)
+			break;
+		sbuf_mem(sb, buf, ret);
+	}
+	close(fd);
+	*len = sbuf_len(sb);
+	return sbuf_done(sb);
+}
+
+/* just in case basename() is not available */
+static char *filename(char *path)
+{
+	char *sl = strrchr(path, '/');
+	return sl ? sl + 1 : path;
+}
+
+static void put_body(struct sbuf *sb, char *body)
+{
+	sbuf_printf(sb, "MIME-Version: 1.0\n");
+	if (!parts_n) {
+		sbuf_printf(sb, "Content-Type: text/plain; charset=utf-8\n");
+		sbuf_printf(sb, "Content-Transfer-Encoding: 8bit\n");
+		sbuf_printf(sb, "\n");
+		sbuf_str(sb, body);
+	} else {
+		int i;
+		sbuf_printf(sb, "Content-Type: multipart/mixed; boundary=%s\n", MBOUNDARY);
+		sbuf_printf(sb, "\n\n");
+		sbuf_printf(sb, "--%s\n", MBOUNDARY);
+		sbuf_printf(sb, "Content-Type: text/plain; charset=utf-8\n");
+		sbuf_printf(sb, "Content-Transfer-Encoding: 8bit\n");
+		sbuf_printf(sb, "\n");
+		sbuf_str(sb, body);
+		for (i = 0; i < parts_n; i++) {
+			char *cont;
+			int cont_len = 0;
+			sbuf_printf(sb, "--%s\n", MBOUNDARY);
+			sbuf_printf(sb, "Content-Type: application/octet-stream\n");
+			sbuf_printf(sb, "Content-Disposition: attachment; filename=%s;\n",
+				filename(parts[i]));
+			sbuf_printf(sb, "Content-Transfer-Encoding: base64\n");
+			sbuf_printf(sb, "\n");
+			cont = fileread(parts[i], &cont_len);
+			if (cont) {
+				char *b64 = base64(cont, cont_len);
+				sbuf_mem(sb, b64, strlen(b64));
+				free(b64);
+			}
+			free(cont);
+		}
+		sbuf_printf(sb, "--%s--\n", MBOUNDARY);
+	}
+}
+
 static void msg_new(char **msg, long *msglen)
 {
 	struct sbuf *sb = sbuf_make();
@@ -193,6 +273,7 @@ static void msg_new(char **msg, long *msglen)
 	put_id(sb);
 	put_date(sb);
 	put_agent(sb);
+	put_body(sb, "MAIL BODY...\n");
 	sbuf_chr(sb, '\n');
 	*msglen = sbuf_len(sb);
 	*msg = sbuf_done(sb);
@@ -283,8 +364,9 @@ static void put_reply(struct sbuf *sb, char *from, char *to, char *cc, char *rpl
 	}
 }
 
-static void quote_body(struct sbuf *sb, char *msg, long msglen)
+static char *quote_body(char *msg, long msglen)
 {
+	struct sbuf *sb = sbuf_make();
 	char *from = msg_get(msg, msglen, "From:");
 	char *s = msg;
 	char *e = msg + msglen;
@@ -305,6 +387,7 @@ static void quote_body(struct sbuf *sb, char *msg, long msglen)
 		sbuf_mem(sb, s, r - s + 1);
 		s = r + 1;
 	}
+	return sbuf_done(sb);
 }
 
 static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
@@ -317,6 +400,7 @@ static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
 	char *to_hdr = msg_get(msg, msglen, "To:");
 	char *cc_hdr = msg_get(msg, msglen, "CC:");
 	char *rply_hdr = msg_get(msg, msglen, "Reply-To:");
+	char *body;
 	put_from_(sb);
 	put_date(sb);
 	sbuf_printf(sb, "From: \n");
@@ -327,7 +411,9 @@ static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
 	if (id_hdr)
 		put_replyto(sb, id_hdr, ref_hdr);
 	put_agent(sb);
-	quote_body(sb, msg, msglen);
+	body = quote_body(msg, msglen);
+	put_body(sb, body);
+	free(body);
 	*modlen = sbuf_len(sb);
 	*mod = sbuf_done(sb);
 	return 0;
@@ -336,6 +422,7 @@ static int msg_reply(char *msg, long msglen, char **mod, long *modlen)
 static int msg_forward(char *msg, long msglen, char **mod, long *modlen)
 {
 	struct sbuf *sb = sbuf_make();
+	struct sbuf *sb_body = sbuf_make();
 	char *subj_hdr = msg_get(msg, msglen, "Subject:");
 	put_from_(sb);
 	put_date(sb);
@@ -344,8 +431,10 @@ static int msg_forward(char *msg, long msglen, char **mod, long *modlen)
 	put_subjfwd(sb, subj_hdr);
 	put_id(sb);
 	put_agent(sb);
-	sbuf_str(sb, "\n-------- Original Message --------\n");
-	sbuf_mem(sb, msg, msglen);
+	sbuf_str(sb_body, "\n-------- Original Message --------\n");
+	sbuf_mem(sb_body, msg, msglen);
+	put_body(sb, sbuf_buf(sb_body));
+	sbuf_free(sb_body);
 	*modlen = sbuf_len(sb);
 	*mod = sbuf_done(sb);
 	return 0;

@@ -20,6 +20,7 @@ char *msg_get(char *msg, long msz, char *hdr);
 int msg_set(char *msg, long msglen, char **mod, long *modlen, char *hdr, char *val);
 char *msg_hdrdec(char *hdr);
 int msg_demime(char *msg, long msglen, char **mod, long *modlen);
+char *base64(char *s, int len);
 
 int hdrlen(char *hdr, long len);
 int startswith(char *r, char *s);
