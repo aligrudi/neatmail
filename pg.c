@@ -81,8 +81,10 @@ static int mbox_mid(char *path, char *mid)
 }
 
 static char *usage =
-	"usage: neatmail pg [options] mbox [msg or =msg_id]\n\n"
+	"usage: neatmail pg [options]\n\n"
 	"options:\n"
+	"   -b path \tmbox path\n"
+	"   -i msg  \tmsg number or message id (=msg_id)\n"
 	"   -h hdrs \tthe list of headers to include\n"
 	"   -m      \tdecode mime message\n"
 	"   -r      \tgenerate a reply\n"
@@ -92,9 +94,10 @@ static char *usage =
 
 int pg(char *argv[])
 {
-	char *mbox;
 	char *msg, *mod;
 	char *hdrs = NULL;
+	char *path = NULL;
+	char *msgnum = NULL;
 	long msglen, modlen;
 	int demime = 0;
 	int reply = 0;
@@ -111,6 +114,14 @@ int pg(char *argv[])
 			newmsg = 1;
 		if (argv[i][1] == 'f')
 			forward = 1;
+		if (argv[i][1] == 'b') {
+			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+			continue;
+		}
+		if (argv[i][1] == 'i') {
+			msgnum = argv[i][2] ? argv[i] + 2 : argv[++i];
+			continue;
+		}
 		if (argv[i][1] == 'h') {
 			hdrs = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
@@ -127,16 +138,19 @@ int pg(char *argv[])
 		free(msg);
 		return 0;
 	}
-	if (!argv[i] || !argv[i + 1]) {
+	if (!path && argv[i])
+		path = argv[i++];
+	if (!msgnum && argv[i])
+		msgnum = argv[i++];
+	if (!path || !msgnum) {
 		printf("%s", usage);
 		return 1;
 	}
-	mbox = argv[i];
-	if (argv[i + 1][0] == '=')
-		addr = mbox_mid(mbox, argv[i + 1] + 1);
+	if (msgnum[0] == '=')
+		addr = mbox_mid(path, msgnum + 1);
 	else
-		addr = atoi(argv[i + 1]);
-	if (addr >= 0 && !mbox_ith(mbox, addr, &msg, &msglen)) {
+		addr = atoi(msgnum);
+	if (addr >= 0 && !mbox_ith(path, addr, &msg, &msglen)) {
 		if (demime && !msg_demime(msg, msglen, &mod, &modlen)) {
 			free(msg);
 			msg = mod;
