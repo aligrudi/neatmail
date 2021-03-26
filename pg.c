@@ -260,7 +260,7 @@ static void put_body(struct sbuf *sb, char *body)
 			int cont_len = 0;
 			sbuf_printf(sb, "--%s\n", MBOUNDARY);
 			sbuf_printf(sb, "Content-Type: application/octet-stream\n");
-			sbuf_printf(sb, "Content-Disposition: attachment; filename=%s;\n",
+			sbuf_printf(sb, "Content-Disposition: attachment; filename=\"%s\"\n",
 				filename(parts[i]));
 			sbuf_printf(sb, "Content-Transfer-Encoding: base64\n");
 			sbuf_printf(sb, "\n");
