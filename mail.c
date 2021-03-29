@@ -48,8 +48,9 @@ static char *usage =
 	"   ex  \texecute commands on an mbox\n"
 	"   mk  \tlist the messages in an mbox\n"
 	"   pg  \tpage a message of an mbox\n"
-	"   ns  \tcheck mboxes for new mails\n"
-	"   me  \tencode mime message headers\n";
+	"   me  \tencode mime message headers\n"
+	"   pn  \tprune an mbox\n"
+	"   ns  \tcheck mboxes for new mails\n";
 
 int main(int argc, char *argv[])
 {
@@ -62,9 +63,11 @@ int main(int argc, char *argv[])
 		return ex(argv + 2);
 	if (argv[1] && !strcmp("pg", argv[1]))
 		return pg(argv + 2);
-	if (argv[1] && !strcmp("ns", argv[1]))
-		return ns(argv + 2);
 	if (argv[1] && !strcmp("me", argv[1]))
 		return me(argv + 2);
+	if (argv[1] && !strcmp("pn", argv[1]))
+		return pn(argv + 2);
+	if (argv[1] && !strcmp("ns", argv[1]))
+		return ns(argv + 2);
 	return 0;
 }
