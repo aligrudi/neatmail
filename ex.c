@@ -264,6 +264,7 @@ static int ec_threadjoin(char *arg)
 	if (msg_set(msg, msglen, &mod, &modlen, "in-reply-to:", sbuf_done(sb)))
 		return 1;
 	mbox_set(mbox, pos, mod, modlen);
+	free(mod);
 	return 0;
 }
 
@@ -272,23 +273,24 @@ static int ec_chop(char *arg)
 	char *msg, *mod;
 	long msglen, modlen;
 	struct sbuf *sb;
-	long newlen = atoi(arg);
-	long beg = 0;
+	long newlen = arg ? atoi(arg) * 1024 : 0;
+	long end, beg = 0;
 	if (mbox_get(mbox, pos, &msg, &msglen))
 		return 1;
 	while (beg + 2 < msglen && (msg[beg] != '\n' || msg[beg + 1] != '\n'))
 		beg++;
-	beg++;
-	if (newlen < beg)
-		newlen = beg;
-	while (newlen < msglen && msg[newlen] != '\n')
-		newlen++;
+	end = beg + 1 + newlen;
+	while (end < msglen && msg[end] != '\n')
+		end++;
+	if (end >= msglen)
+		return 0;
 	sb = sbuf_make();
-	sbuf_mem(sb, msg, newlen);
+	sbuf_mem(sb, msg, end);
 	sbuf_str(sb, "\nCHOPPED...\n\n");
 	modlen = sbuf_len(sb);
 	mod = sbuf_done(sb);
 	mbox_set(mbox, pos, mod, modlen);
+	free(mod);
 	return 0;
 }
 

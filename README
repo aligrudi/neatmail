@@ -28,7 +28,7 @@ The list of named commands are as follows:
 * w: write the mbox.
 * g, g!: ex-like global command.
 * tj: join threads by modifying "Reply-To" headers.
-* ch: chop the message at the specified offset.
+* ch: chop the message at the specified offset in kilobytes.
 
 These commands act on the current message by default (if applicable),
 but different messages may be specified using ex-like addresses.  For
