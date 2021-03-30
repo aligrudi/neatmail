@@ -10,36 +10,27 @@
 
 #define USERAGENT	"neatmail (git://repo.or.cz/neatmail.git)"
 #define MBOUNDARY	"neatmail-boundary"
-#define NPARTS		16
+#define PARTS_N		16
+#define HDRS_N		128
 
-static char *parts[NPARTS];
+static char *parts[PARTS_N];
 static int parts_n;
 
 static void msg_new(char **msg, long *msglen);
 static int msg_reply(char *msg, long msglen, char **mod, long *modlen);
 static int msg_forward(char *msg, long msglen, char **mod, long *modlen);
 
-static char *segment(char *d, char *s, int m)
-{
-	char *r = strchr(s, m);
-	char *e = r ? r + 1 : strchr(s, '\0');
-	memcpy(d, s, e - s);
-	d[e - s] = '\0';
-	return e;
-}
-
-static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hdrs)
+static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hdrs[])
 {
 	struct sbuf *sb = sbuf_make();
-	char *hdr = malloc(strlen(hdrs) + 1);
 	char *s = msg;
 	char *e = msg + msglen;
-	while ((hdrs = segment(hdr, hdrs, ':')) && hdr[0]) {
-		char *val = msg_get(msg, msglen, hdr);
+	int i;
+	for (i = 0; hdrs[i]; i++) {
+		char *val = msg_get(msg, msglen, hdrs[i]);
 		if (val)
 			sbuf_mem(sb, val, hdrlen(val, msg + msglen - val));
 	}
-	free(hdr);
 	while (s + 1 < e && (s[0] != '\n' || s[1] != '\n'))
 		s++;
 	s++;
@@ -85,7 +76,7 @@ static char *usage =
 	"options:\n"
 	"   -b path \tmbox path\n"
 	"   -i msg  \tmsg number or message id (=msg_id)\n"
-	"   -h hdrs \tthe list of headers to include\n"
+	"   -h hdr  \tspecify headers to include\n"
 	"   -m      \tdecode mime message\n"
 	"   -r      \tgenerate a reply\n"
 	"   -f      \tgenerate a forward\n"
@@ -95,7 +86,7 @@ static char *usage =
 int pg(char *argv[])
 {
 	char *msg, *mod;
-	char *hdrs = NULL;
+	char *hdrs[HDRS_N];
 	char *path = NULL;
 	char *msgnum = NULL;
 	long msglen, modlen;
@@ -103,6 +94,7 @@ int pg(char *argv[])
 	int reply = 0;
 	int forward = 0;
 	int newmsg = 0;
+	int hdrs_n = 0;
 	int addr;
 	int i;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
@@ -123,11 +115,13 @@ int pg(char *argv[])
 			continue;
 		}
 		if (argv[i][1] == 'h') {
-			hdrs = argv[i][2] ? argv[i] + 2 : argv[++i];
+			char *hdr = argv[i][2] ? argv[i] + 2 : argv[++i];
+			if (hdrs_n + 1 < HDRS_N)
+				hdrs[hdrs_n++] = hdr;
 			continue;
 		}
 		if (argv[i][1] == 'a') {
-			if (parts_n < NPARTS)
+			if (parts_n < PARTS_N)
 				parts[parts_n++] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
@@ -161,7 +155,7 @@ int pg(char *argv[])
 			msg = mod;
 			msglen = modlen;
 		}
-		if (hdrs && !msg_filter(msg, msglen, &mod, &modlen, hdrs)) {
+		if (hdrs_n && !msg_filter(msg, msglen, &mod, &modlen, hdrs)) {
 			free(msg);
 			msg = mod;
 			msglen = modlen;
