@@ -50,7 +50,7 @@ Open inbox.nm in an editor, change the status field of
 messages, and append ex commands.
 
 Page, reply, or forward messages (see pg options):
-$ neatmail pg -m -h from:subject:to:cc: inbox 23 >mail
+$ neatmail pg -b inbox -i 23 -m -h from: -h subject: -h to: -h cc: >mail
 
 Execute the commands specified in inbox.nm:
 $ (cat inbox.nm; echo ":w") | neatmail ex inbox
