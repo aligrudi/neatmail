@@ -11,6 +11,8 @@ Neatmail provides the following commands:
 * ex: execute the specified commands on an mbox.
 * pg: page a message in an mbox.
 * ns: check for new messages among several mboxes.
+* pn: prune an mbox (shorten messages).
+* me: MIME-encode message headers.
 
 The ex command reads a list of commands from the standard input and
 executes them on a given mbox file.  It ignores all input lines except
