@@ -4,8 +4,9 @@
 #include <string.h>
 #include "regex.h"
 
-#define NGRPS		64
-#define NREPS		128
+#define NGRPS		64	/* maximum number of groups */
+#define NREPS		128	/* maximum repetitions */
+#define NDEPT		256	/* re_rec() recursion depth limit */
 
 #define MAX(a, b)	((a) < (b) ? (b) : (a))
 #define LEN(a)		(sizeof(a) / sizeof((a)[0]))
@@ -40,9 +41,9 @@ struct ratom {
 
 /* regular expression instruction */
 struct rinst {
-	int ri;			/* instruction type (RI_*) */
 	struct ratom ra;	/* regular expression atom (RI_ATOM) */
-	int a1, a2;		/* destination of RE_FORK and RI_JUMP */
+	int ri;			/* instruction type (RI_*) */
+	int a1, a2;		/* destination of RI_FORK and RI_JUMP */
 	int mark;		/* mark (RI_MARK) */
 };
 
@@ -50,25 +51,26 @@ struct rinst {
 struct regex {
 	struct rinst *p;	/* the program */
 	int n;			/* number of instructions */
-	int grpcnt;		/* number of groups */
 	int flg;		/* regcomp() flags */
 };
 
 /* regular expression matching state */
 struct rstate {
-	int mark[NGRPS * 2];	/* marks for RI_MARK */
-	int pc;			/* program counter */
 	char *s;		/* the current position in the string */
 	char *o;		/* the beginning of the string */
+	int mark[NGRPS * 2];	/* marks for RI_MARK */
+	int pc;			/* program counter */
 	int flg;		/* flags passed to regcomp() and regexec() */
+	int dep;		/* re_rec() depth */
 };
 
 /* regular expression tree; used for parsing */
 struct rnode {
-	int rn;			/* node type (RN_*) */
 	struct ratom ra;	/* regular expression atom (RN_ATOM) */
-	int mincnt, maxcnt;	/* number of repetitions */
 	struct rnode *c1, *c2;	/* children */
+	int mincnt, maxcnt;	/* number of repetitions */
+	int grp;		/* group number */
+	int rn;			/* node type (RN_*) */
 };
 
 static struct rnode *rnode_make(int rn, struct rnode *c1, struct rnode *c2)
@@ -96,10 +98,8 @@ static void rnode_free(struct rnode *rnode)
 static int uc_len(char *s)
 {
 	int c = (unsigned char) s[0];
-	if (~c & 0x80)		/* ASCII */
+	if (~c & 0xc0)		/* ASCII or invalid */
 		return c > 0;
-	if (~c & 0x40)		/* invalid UTF-8 */
-		return 1;
 	if (~c & 0x20)
 		return 2;
 	if (~c & 0x10)
@@ -111,14 +111,16 @@ static int uc_len(char *s)
 
 static int uc_dec(char *s)
 {
-	int result;
-	int l = uc_len(s);
-	if (l <= 1)
-		return (unsigned char) *s;
-	result = (0x3f >> --l) & (unsigned char) *s++;
-	while (l--)
-		result = (result << 6) | ((unsigned char) *s++ & 0x3f);
-	return result;
+	int c = (unsigned char) s[0];
+	if (~c & 0xc0)		/* ASCII or invalid */
+		return c;
+	if (~c & 0x20)
+		return ((c & 0x1f) << 6) | (s[1] & 0x3f);
+	if (~c & 0x10)
+		return ((c & 0x0f) << 12) | ((s[1] & 0x3f) << 6) | (s[2] & 0x3f);
+	if (~c & 0x08)
+		return ((c & 0x07) << 18) | ((s[1] & 0x3f) << 12) | ((s[2] & 0x3f) << 6) | (s[3] & 0x3f);
+	return c;
 }
 
 static void ratom_copy(struct ratom *dst, struct ratom *src)
@@ -276,14 +278,14 @@ static int ratom_match(struct ratom *ra, struct rstate *rs)
 		return 0;
 	}
 	if (ra->ra == RA_ANY) {
-		if (!rs->s[0])
+		if (!rs->s[0] || (rs->s[0] == '\n' && !(rs->flg & REG_NOTEOL)))
 			return 1;
 		rs->s += uc_len(rs->s);
 		return 0;
 	}
 	if (ra->ra == RA_BRK) {
 		int c = uc_dec(rs->s);
-		if (!c)
+		if (!c || (c == '\n' && !(rs->flg & REG_NOTEOL)))
 			return 1;
 		rs->s += uc_len(rs->s);
 		return brk_match(ra->s + 1, c, rs->flg);
@@ -305,13 +307,15 @@ static struct rnode *rnode_parse(char **pat);
 
 static struct rnode *rnode_grp(char **pat)
 {
-	struct rnode *rnode;
+	struct rnode *rnode = NULL;
 	if ((*pat)[0] != '(')
 		return NULL;
 	*pat += 1;
-	rnode = rnode_parse(pat);
-	if (!rnode)
-		return NULL;
+	if ((*pat)[0] != ')') {
+		rnode = rnode_parse(pat);
+		if (!rnode)
+			return NULL;
+	}
 	if ((*pat)[0] != ')') {
 		rnode_free(rnode);
 		return NULL;
@@ -338,11 +342,11 @@ static struct rnode *rnode_atom(char **pat)
 	if ((*pat)[0] == '*' || (*pat)[0] == '?') {
 		rnode->mincnt = 0;
 		rnode->maxcnt = (*pat)[0] == '*' ? -1 : 1;
-		(*pat)++;
+		*pat += 1;
 	}
 	if ((*pat)[0] == '+') {
 		rnode->mincnt = 1;
-		rnode->maxcnt = NREPS;
+		rnode->maxcnt = -1;
 		*pat += 1;
 	}
 	if ((*pat)[0] == '{') {
@@ -354,7 +358,7 @@ static struct rnode *rnode_atom(char **pat)
 		if (**pat == ',') {
 			(*pat)++;
 			if ((*pat)[0] == '}')
-				rnode->maxcnt = NREPS;
+				rnode->maxcnt = -1;
 			while (isdigit((unsigned char) **pat))
 				rnode->maxcnt = rnode->maxcnt * 10 + *(*pat)++ - '0';
 		} else {
@@ -416,6 +420,18 @@ static int rnode_count(struct rnode *rnode)
 	return n;
 }
 
+static int rnode_grpnum(struct rnode *rnode, int num)
+{
+	int cur = 0;
+	if (!rnode)
+		return 0;
+	if (rnode->rn == RN_GRP)
+		rnode->grp = num + cur++;
+	cur += rnode_grpnum(rnode->c1, num + cur);
+	cur += rnode_grpnum(rnode->c2, num + cur);
+	return cur;
+}
+
 static int re_insert(struct regex *p, int ri)
 {
 	p->p[p->n++].ri = ri;
@@ -441,12 +457,11 @@ static void rnode_emitnorep(struct rnode *n, struct regex *p)
 		rnode_emit(n->c2, p);
 	}
 	if (n->rn == RN_GRP) {
-		int grp = p->grpcnt++ + 1;
 		mark = re_insert(p, RI_MARK);
-		p->p[mark].mark = 2 * grp;
+		p->p[mark].mark = 2 * n->grp;
 		rnode_emit(n->c1, p);
 		mark = re_insert(p, RI_MARK);
-		p->p[mark].mark = 2 * grp + 1;
+		p->p[mark].mark = 2 * n->grp + 1;
 	}
 	if (n->rn == RN_ATOM) {
 		int atom = re_insert(p, RI_ATOM);
@@ -501,6 +516,7 @@ int regcomp(regex_t *preg, char *pat, int flg)
 	int mark;
 	if (!rnode)
 		return 1;
+	rnode_grpnum(rnode, 1);
 	re = malloc(sizeof(*re));
 	memset(re, 0, sizeof(*re));
 	re->p = malloc(n * sizeof(re->p[0]));
@@ -530,35 +546,39 @@ void regfree(regex_t *preg)
 
 static int re_rec(struct regex *re, struct rstate *rs)
 {
-	struct rinst *ri = &re->p[rs->pc];
-	if (ri->ri == RI_ATOM) {
-		if (ratom_match(&ri->ra, rs))
-			return 1;
-		rs->pc++;
-		return re_rec(re, rs);
+	struct rinst *ri = NULL;
+	if (++(rs->dep) >= NDEPT)
+		return 1;
+	while (1) {
+		ri = &re->p[rs->pc];
+		if (ri->ri == RI_ATOM) {
+			if (ratom_match(&ri->ra, rs))
+				return 1;
+			rs->pc++;
+			continue;
+		}
+		if (ri->ri == RI_MARK) {
+			if (ri->mark < NGRPS)
+				rs->mark[ri->mark] = rs->s - rs->o;
+			rs->pc++;
+			continue;
+		}
+		if (ri->ri == RI_JUMP) {
+			rs->pc = ri->a1;
+			continue;
+		}
+		if (ri->ri == RI_FORK) {
+			struct rstate base = *rs;
+			rs->pc = ri->a1;
+			if (!re_rec(re, rs))
+				return 0;
+			*rs = base;
+			rs->pc = ri->a2;
+			continue;
+		}
+		break;
 	}
-	if (ri->ri == RI_MARK) {
-		if (ri->mark < NGRPS)
-			rs->mark[ri->mark] = rs->s - rs->o;
-		rs->pc++;
-		return re_rec(re, rs);
-	}
-	if (ri->ri == RI_JUMP) {
-		rs->pc = ri->a1;
-		return re_rec(re, rs);
-	}
-	if (ri->ri == RI_FORK) {
-		struct rstate base = *rs;
-		rs->pc = ri->a1;
-		if (!re_rec(re, rs))
-			return 0;
-		*rs = base;
-		rs->pc = ri->a2;
-		return re_rec(re, rs);
-	}
-	if (ri->ri == RI_MATCH)
-		return 0;
-	return 1;
+	return ri->ri != RI_MATCH;
 }
 
 static int re_recmatch(struct regex *re, struct rstate *rs, int nsub, regmatch_t *psub)
@@ -567,6 +587,7 @@ static int re_recmatch(struct regex *re, struct rstate *rs, int nsub, regmatch_t
 	rs->pc = 0;
 	for (i = 0; i < LEN(rs->mark); i++)
 		rs->mark[i] = -1;
+	rs->dep = 0;
 	if (!re_rec(re, rs)) {
 		for (i = 0; i < nsub; i++) {
 			psub[i].rm_so = i * 2 < LEN(rs->mark) ? rs->mark[i * 2] : -1;
