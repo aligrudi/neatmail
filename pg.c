@@ -86,7 +86,7 @@ static char *usage =
 int pg(char *argv[])
 {
 	char *msg, *mod;
-	char *hdrs[HDRS_N];
+	char *hdrs[HDRS_N] = {NULL};
 	char *path = NULL;
 	char *msgnum = NULL;
 	long msglen, modlen;
