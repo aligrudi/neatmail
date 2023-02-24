@@ -63,15 +63,16 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 	struct sbuf *dst;
 	int dst_wid;
 	char *val, *val0, *end;
-	val = msg_dec(msg, msz, hdr[0] == '~' ? hdr + 1 : hdr);
-	if (!val) {
-		val = malloc(1);
-		val[0] = '\0';
+	val0 = msg_dec(msg, msz, hdr[0] == '~' ? hdr + 1 : hdr);
+	if (val0) {
+		val = val0 + strlen(hdr) - (hdr[0] == '~');
+	} else {
+		val0 = malloc(1);
+		val0[0] = '\0';
+		val = val0;
 	}
-	val0 = val;
 	end = strchr(val, '\0');
 	dst = sbuf_make();
-	val += strlen(hdr);
 	while (val < end && isspace((unsigned char) *val))
 		val++;
 	dst_wid = 0;
