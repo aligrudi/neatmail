@@ -1,0 +1,29 @@
+From root Tue Dec 21 01:01:01 2015
+From: A <a@a.eu>
+To: B <b@b.eu>
+Subject: Revised
+Message-Id: <msg001>
+Date: Tue, 21 Dec 2015 01:01:00 +0100
+Status: R
+
+This is A.
+
+From root Tue Dec 22 02:02:02 2015
+From: B <b@b.eu>
+To: A <a@a.eu>
+Subject: Message from B
+Message-Id: <msg002>
+Date: Tue, 22 Dec 2015 02:02:00 +0100
+
+This is B.
+
+From root Tue Dec 23 03:03:03 2015
+From: C <c@c.eu>
+To: A <a@a.eu>
+Cc: B <b@b.eu>
+Subject: Message from C
+Message-Id: <msg003>
+Date: Tue, 23 Dec 2015 03:03:00 +0100
+
+This is C.
+

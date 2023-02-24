@@ -1,0 +1,21 @@
+From: 
+To: 
+Subject: 
+User-Agent: neatmail (git://repo.or.cz/neatmail.git)
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary=neatmail-boundary
+
+Multi-part MIME message.
+--neatmail-boundary
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+MAIL BODY...
+--neatmail-boundary
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".attachment"
+Content-Transfer-Encoding: base64
+
+SGVsbG8gd29ybGQhCg==
+--neatmail-boundary--
+
