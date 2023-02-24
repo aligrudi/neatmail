@@ -55,7 +55,7 @@ Page, reply, or forward messages (see pg options):
 $ neatmail pg -b inbox -i 23 -m -h from: -h subject: -h to: -h cc: >mail
 
 Execute the commands specified in inbox.nm:
-$ (cat inbox.nm; echo ":w") | neatmail ex inbox
+$ (cat inbox.nm; echo ":w") | neatmail ex -b inbox
 
 It is more convenient to place these commands in a script.
 

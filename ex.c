@@ -395,7 +395,9 @@ int ex(char *argv[])
 	char *cmd;
 	char *path = NULL;
 	if (!argv[0]) {
-		printf("usage: neatmail ex mbox <cmds\n");
+		printf("usage: neatmail ex [options] <cmds\n\n");
+		printf("options:\n");
+		printf("   -b path \tmbox path\n");
 		return 1;
 	}
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
