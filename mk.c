@@ -165,7 +165,8 @@ int mk(char *argv[])
 	int beg = 0;
 	int sort = 0;
 	int sum = 0;
-	char *path = NULL;
+	char *path[16] = {NULL};
+	int path_n = 0;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
 		if (argv[i][1] == 'f') {
 			beg = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
@@ -181,7 +182,7 @@ int mk(char *argv[])
 			continue;
 		}
 		if (argv[i][1] == 'b') {
-			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+			path[path_n++] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
 		if (argv[i][1] == '0' || argv[i][1] == '1') {
@@ -190,14 +191,15 @@ int mk(char *argv[])
 			continue;
 		}
 	}
-	if (!path && !argv[i]) {
+	if (!path[0] && !argv[i]) {
 		printf("%s", usage);
 		return 1;
 	}
-	path = argv[i] ? argv[i] : path;
+	for (; argv[i]; i++)
+		path[path_n++] = argv[i];
 	mbox = mbox_open(path);
 	if (!mbox) {
-		fprintf(stderr, "neatmail: cannot open <%s>\n", path);
+		fprintf(stderr, "neatmail: cannot open <%s>\n", path[0]);
 		return 1;
 	}
 	mids = malloc(mbox_len(mbox) * sizeof(mids[0]));

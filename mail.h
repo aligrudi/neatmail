@@ -8,7 +8,7 @@ int me(char *argv[]);
 
 struct mbox;
 
-struct mbox *mbox_open(char *path);
+struct mbox *mbox_open(char **path);
 void mbox_free(struct mbox *mbox);
 int mbox_save(struct mbox *mbox);
 int mbox_copy(struct mbox *mbox, char *path);

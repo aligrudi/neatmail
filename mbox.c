@@ -11,16 +11,22 @@
 #include <utime.h>
 #include "mail.h"
 
+#define MBOX_N	16		/* number of mboxes */
+
 struct mbox {
-	char *path;
-	char **msg;	/* messages */
-	long *msglen;	/* message lengths */
-	char **mod;	/* modified messages */
-	long *modlen;	/* modified message lengths */
-	int sz;		/* size of arrays */
-	char *buf;	/* mbox buffer */
-	long len;	/* buf len */
-	int n;		/* number of messages */
+	char *boxpath[MBOX_N];	/* mbox paths */
+	char *boxbuf[MBOX_N];	/* mbox bufferes */
+	long boxlen[MBOX_N];	/* mbox buf lengths */
+	int boxcnt[MBOX_N];	/* number mbox messages */
+	int boxbeg[MBOX_N];	/* mbox's first message */
+	int boxend[MBOX_N];	/* mbox's last message */
+	int cnt;		/* number of mboxes */
+	char **msg;		/* messages */
+	long *msglen;		/* message lengths */
+	char **mod;		/* modified messages */
+	long *modlen;		/* modified message lengths */
+	int msgmax;		/* size of msg arrays */
+	int msgcnt;		/* number of messages */
 };
 
 static void set_atime(char *filename)
@@ -48,7 +54,7 @@ static char *mbox_from_(char *s, char *e)
 
 int mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
 {
-	if (i < 0 || i >= mbox->n)
+	if (i < 0 || i >= mbox->msgcnt)
 		return 1;
 	if (mbox->mod[i]) {
 		*msg = mbox->mod[i];
@@ -62,7 +68,7 @@ int mbox_get(struct mbox *mbox, int i, char **msg, long *msglen)
 
 int mbox_set(struct mbox *mbox, int i, char *msg, long msz)
 {
-	if (i < 0 || i >= mbox->n)
+	if (i < 0 || i >= mbox->msgcnt)
 		return 1;
 	free(mbox->mod[i]);
 	mbox->mod[i] = malloc(msz + 1);
@@ -76,7 +82,7 @@ int mbox_set(struct mbox *mbox, int i, char *msg, long msz)
 
 int mbox_len(struct mbox *mbox)
 {
-	return mbox->n;
+	return mbox->msgcnt;
 }
 
 static void *mextend(void *old, long oldsz, long newsz, long memsz)
@@ -90,11 +96,11 @@ static void *mextend(void *old, long oldsz, long newsz, long memsz)
 
 static int mbox_extend(struct mbox *mbox, int cnt)
 {
-	mbox->sz = mbox->sz + cnt;
-	mbox->msg = mextend(mbox->msg, mbox->n, mbox->sz, sizeof(mbox->msg[0]));
-	mbox->msglen = mextend(mbox->msglen, mbox->n, mbox->sz, sizeof(mbox->msglen[0]));
-	mbox->mod = mextend(mbox->mod, mbox->n, mbox->sz, sizeof(mbox->mod[0]));
-	mbox->modlen = mextend(mbox->modlen, mbox->n, mbox->sz, sizeof(mbox->modlen[0]));
+	mbox->msgmax = mbox->msgmax + cnt;
+	mbox->msg = mextend(mbox->msg, mbox->msgcnt, mbox->msgmax, sizeof(mbox->msg[0]));
+	mbox->msglen = mextend(mbox->msglen, mbox->msgcnt, mbox->msgmax, sizeof(mbox->msglen[0]));
+	mbox->mod = mextend(mbox->mod, mbox->msgcnt, mbox->msgmax, sizeof(mbox->mod[0]));
+	mbox->modlen = mextend(mbox->modlen, mbox->msgcnt, mbox->msgmax, sizeof(mbox->modlen[0]));
 	if (!mbox->msg || !mbox->msglen || !mbox->mod || !mbox->modlen)
 		return 1;
 	return 0;
@@ -102,16 +108,16 @@ static int mbox_extend(struct mbox *mbox, int cnt)
 
 static int mbox_mails(struct mbox *mbox, char *s, char *e)
 {
-	int i;
 	s = mbox_from_(s, e);
-	for (i = 0; s && s < e; i++) {
+	while (s && s < e) {
 		char *r = s;
-		if (mbox->n == mbox->sz)
-			mbox_extend(mbox, mbox->sz ? mbox->sz : 256);
-		mbox->msg[i] = s;
+		if (mbox->msgcnt == mbox->msgmax)
+			if (mbox_extend(mbox, mbox->msgmax ? mbox->msgmax : 256))
+				return 1;
+		mbox->msg[mbox->msgcnt] = s;
 		s = mbox_from_(s + 6, e);
-		mbox->msglen[i] = s ? s - r : mbox->buf + mbox->len - r;
-		mbox->n++;
+		mbox->msglen[mbox->msgcnt] = s ? s - r : e - r;
+		mbox->msgcnt++;
 	}
 	return 0;
 }
@@ -123,24 +129,6 @@ static int filesize(int fd)
 	return stat.st_size;
 }
 
-static int mbox_read(struct mbox *mbox)
-{
-	int fd = open(mbox->path, O_RDONLY);
-	if (fd < 0)
-		return 1;
-	mbox->len = filesize(fd);
-	mbox->buf = malloc(mbox->len + 1);
-	if (!mbox->buf)
-		return 1;
-	xread(fd, mbox->buf, mbox->len);
-	mbox->buf[mbox->len] = '\0';
-	close(fd);
-	set_atime(mbox->path);		/* update mbox access time */
-	if (mbox_mails(mbox, mbox->buf, mbox->buf + mbox->len))
-		return 1;
-	return 0;
-}
-
 static char *sdup(char *s)
 {
 	int n = strlen(s) + 1;
@@ -150,17 +138,42 @@ static char *sdup(char *s)
 	return r;
 }
 
-struct mbox *mbox_open(char *path)
+static int mbox_read(struct mbox *mbox, char *path)
 {
-	struct mbox *mbox;
-	mbox = malloc(sizeof(*mbox));
+	int tag = mbox->cnt++;
+	int fd;
+	mbox->boxpath[tag] = sdup(path);
+	if (!mbox->boxpath[tag])
+		return 1;
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return 1;
+	mbox->boxlen[tag] = filesize(fd);
+	mbox->boxbuf[tag] = malloc(mbox->boxlen[tag] + 1);
+	if (!mbox->boxbuf[tag])
+		return 1;
+	xread(fd, mbox->boxbuf[tag], mbox->boxlen[tag]);
+	mbox->boxbuf[tag][mbox->boxlen[tag]] = '\0';
+	close(fd);
+	set_atime(mbox->boxpath[tag]);		/* update mbox access time */
+	mbox->boxbeg[tag] = mbox->msgcnt;
+	if (mbox_mails(mbox, mbox->boxbuf[tag], mbox->boxbuf[tag] + mbox->boxlen[tag]))
+		return 1;
+	mbox->boxend[tag] = mbox->msgcnt;
+	return 0;
+}
+
+struct mbox *mbox_open(char **path)
+{
+	struct mbox *mbox = malloc(sizeof(*mbox));
 	if (!mbox)
 		return NULL;
 	memset(mbox, 0, sizeof(*mbox));
-	mbox->path = sdup(path);
-	if (!mbox->path || mbox_read(mbox)) {
-		mbox_free(mbox);
-		return NULL;
+	for (; *path; path++) {
+		if (mbox->cnt + 1 < MBOX_N && mbox_read(mbox, *path)) {
+			mbox_free(mbox);
+			return NULL;
+		}
 	}
 	return mbox;
 }
@@ -168,21 +181,23 @@ struct mbox *mbox_open(char *path)
 void mbox_free(struct mbox *mbox)
 {
 	int i;
-	for (i = 0; i < mbox->n; i++)
+	for (i = 0; i < mbox->msgcnt; i++)
 		free(mbox->mod[i]);
+	for (i = 0; i < mbox->cnt; i++) {
+		free(mbox->boxpath[i]);
+		free(mbox->boxbuf[i]);
+	}
 	free(mbox->msg);
 	free(mbox->msglen);
 	free(mbox->mod);
 	free(mbox->modlen);
-	free(mbox->path);
-	free(mbox->buf);
 	free(mbox);
 }
 
-static int mbox_modified(struct mbox *mbox)
+static int mbox_modified(struct mbox *mbox, int tag)
 {
 	int i;
-	for (i = 0; i < mbox->n; i++)
+	for (i = mbox->boxbeg[tag]; i < mbox->boxend[tag]; i++)
 		if (mbox->mod[i])
 			return 1;
 	return 0;
@@ -195,7 +210,7 @@ int mbox_copy(struct mbox *mbox, char *path)
 	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (fd < 0)
 		return -1;
-	for (i = 0; i < mbox->n; i++) {
+	for (i = mbox->boxbeg[0]; i < mbox->boxend[0]; i++) {
 		char *msg = mbox->mod[i] ? mbox->mod[i] : mbox->msg[i];
 		long len = mbox->mod[i] ? mbox->modlen[i] : mbox->msglen[i];
 		xwrite(fd, msg, len);
@@ -204,26 +219,26 @@ int mbox_copy(struct mbox *mbox, char *path)
 	return 0;
 }
 
-int mbox_save(struct mbox *mbox)
+int mbox_savetag(struct mbox *mbox, int tag)
 {
 	int fd;
 	int i = 0;
-	char *newbuf;
+	char *newbuf = NULL;
 	long off = 0;
 	long newlen;
-	if (!mbox_modified(mbox))
+	if (!mbox_modified(mbox, tag))
 		return 0;
-	while (i < mbox->n && !mbox->mod[i])
-		off += mbox->msglen[i++];
-	fd = open(mbox->path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-	newlen = filesize(fd) - mbox->len;
+	for (i = mbox->boxbeg[tag]; i < mbox->boxend[tag] && !mbox->mod[i]; i++)
+		off += mbox->msglen[i];
+	fd = open(mbox->boxpath[tag], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	newlen = filesize(fd) - mbox->boxlen[tag];
 	if (newlen > 0) {
 		newbuf = malloc(newlen);
-		lseek(fd, mbox->len, 0);
+		lseek(fd, mbox->boxlen[tag], 0);
 		xread(fd, newbuf, newlen);
 	}
 	ftruncate(fd, lseek(fd, off, 0));
-	for (; i < mbox->n; i++) {
+	for (; i < mbox->boxend[tag]; i++) {
 		char *msg = mbox->mod[i] ? mbox->mod[i] : mbox->msg[i];
 		long len = mbox->mod[i] ? mbox->modlen[i] : mbox->msglen[i];
 		lseek(fd, 0, 2);
@@ -236,6 +251,11 @@ int mbox_save(struct mbox *mbox)
 	}
 	close(fd);
 	return newlen;
+}
+
+int mbox_save(struct mbox *mbox)
+{
+	return mbox_savetag(mbox, 0);
 }
 
 int mbox_ith(char *path, int n, char **msg, long *msz)

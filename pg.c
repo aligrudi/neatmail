@@ -43,7 +43,8 @@ static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hd
 /* obtain a message from an mbox by its message id */
 static int mbox_mid(char *path, char *mid)
 {
-	struct mbox *mbox = mbox_open(path);
+	char *paths[16] = {path};
+	struct mbox *mbox = mbox_open(paths);
 	int ret = -1;
 	int i;
 	if (!mbox)
