@@ -57,7 +57,7 @@ static int msg_stat(char *msg, long msz, int pos, int def)
 
 static int datedate(char *s);
 
-static char *fieldformat(char *msg, long msz, char *hdr, int wid)
+static char *mk_field(char *msg, long msz, char *hdr, int wid)
 {
 	char tbuf[128];
 	struct sbuf *dst;
@@ -116,6 +116,18 @@ static char *fieldformat(char *msg, long msz, char *hdr, int wid)
 	return sbuf_done(dst);
 }
 
+static char *mk_msgid(int idx, char *box, int flg1, int flg2, int idxwid, int boxwid)
+{
+	static char num[32];
+	char fmt[32], fmtbox[32], numbox[32] = "";
+	sprintf(fmtbox, "%c%%-%ds", box ? '@' : ' ', boxwid);
+	if (boxwid > 0)
+		snprintf(numbox, sizeof(numbox), fmtbox, box);
+	sprintf(fmt, "%c%c%%0%dd%%s", flg1, flg2, idxwid);
+	snprintf(num, sizeof(num), fmt, idx, numbox);
+	return num;
+}
+
 static void mk_sum(struct mbox *mbox)
 {
 	int stats[128] = {0};
@@ -152,7 +164,9 @@ static char *usage =
 	"   -sd     \tsort by receiving date\n"
 	"   -st     \tsort by threads\n"
 	"   -r      \tprint a summary of status flags\n"
-	"   -f n    \tthe first message to list\n";
+	"   -f n    \tthe first message to list\n"
+	"   -n n    \tmessage index field width\n"
+	"   -m n    \tmessage file field width\n";
 
 static int sort_mails(struct mbox *mbox, int *mids, int *levs);
 
@@ -165,6 +179,8 @@ int mk(char *argv[])
 	int beg = 0;
 	int sort = 0;
 	int sum = 0;
+	int idxwid = 4;
+	int boxwid = 0;
 	char *path[16] = {NULL};
 	int path_n = 0;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
@@ -190,6 +206,14 @@ int mk(char *argv[])
 			ln[idx] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
+		if (argv[i][1] == 'n') {
+			idxwid = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
+			continue;
+		}
+		if (argv[i][1] == 'm') {
+			boxwid = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
+			continue;
+		}
 	}
 	if (!path[0] && !argv[i]) {
 		printf("%s", usage);
@@ -213,9 +237,13 @@ int mk(char *argv[])
 	for (i = beg; i < mbox_len(mbox); i++) {
 		char *msg;
 		long msz;
+		int idx;
+		int tag = mbox_pos(mbox, mids[i], &idx);
 		mbox_get(mbox, mids[i], &msg, &msz);
-		printf("%c%c%04d", msg_stat(msg, msz, 0, 'N'),
-				msg_stat(msg, msz, 1, '0'), mids[i]);
+		printf("%s", mk_msgid(idx, tag > 0 ? path[tag] : NULL,
+				msg_stat(msg, msz, 0, 'N'),
+				msg_stat(msg, msz, 1, '0'),
+				idxwid, boxwid));
 		for (j = 0; ln[j]; j++) {
 			char *cln = ln[j];
 			char *tok = malloc(strlen(ln[j]) + 1);
@@ -236,7 +264,7 @@ int mk(char *argv[])
 					if (wid > 0)
 						wid = wid > k ? wid - k : 1;
 				}
-				val = fieldformat(msg, msz, hdr, wid);
+				val = mk_field(msg, msz, hdr, wid);
 				printf("[%s]", val);
 				free(val);
 			}

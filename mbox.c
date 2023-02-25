@@ -258,6 +258,17 @@ int mbox_save(struct mbox *mbox)
 	return mbox_savetag(mbox, 0);
 }
 
+/* return file index of a message and its position within that file */
+int mbox_pos(struct mbox *mbox, int n, int *idx)
+{
+	int i;
+	for (i = 1; i < mbox->cnt; i++)
+		if (n < mbox->boxbeg[i])
+			break;
+	*idx = n - mbox->boxbeg[i - 1];
+	return i - 1;
+}
+
 int mbox_ith(char *path, int n, char **msg, long *msz)
 {
 	int fd = open(path, O_RDONLY);
