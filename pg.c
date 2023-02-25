@@ -137,6 +137,10 @@ int pg(char *argv[])
 		path = argv[i++];
 	if (!msgnum && argv[i])
 		msgnum = argv[i++];
+	if (msgnum[0] != '=' && strchr(msgnum, '@') != NULL) {
+		path = strchr(msgnum, '@') + 1;
+		path[-1] = '\0';
+	}
 	if (!path || !msgnum) {
 		printf("%s", usage);
 		return 1;
