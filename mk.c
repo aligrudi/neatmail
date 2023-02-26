@@ -122,7 +122,8 @@ static char *mk_msgid(int idx, char *box, int flg1, int flg2, int idxwid, int bo
 	char fmt[32], fmtbox[32], numbox[32] = "";
 	sprintf(fmtbox, "%c%%-%ds", box ? '@' : ' ', boxwid);
 	if (boxwid > 0)
-		snprintf(numbox, sizeof(numbox), fmtbox, box);
+		snprintf(numbox, sizeof(numbox), fmtbox, box ? box : "");
+	numbox[boxwid + 1] = '\0';
 	sprintf(fmt, "%c%c%%0%dd%%s", flg1, flg2, idxwid);
 	snprintf(num, sizeof(num), fmt, idx, numbox);
 	return num;
