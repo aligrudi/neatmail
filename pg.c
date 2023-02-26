@@ -41,10 +41,9 @@ static int msg_filter(char *msg, long msglen, char **mod, long *modlen, char *hd
 }
 
 /* obtain a message from an mbox by its message id */
-static int mbox_mid(char *path, char *mid)
+static int mbox_mid(char **path, char *mid)
 {
-	char *paths[16] = {path};
-	struct mbox *mbox = mbox_open(paths);
+	struct mbox *mbox = mbox_open(path);
 	int ret = -1;
 	int i;
 	if (!mbox)
@@ -88,7 +87,7 @@ int pg(char *argv[])
 {
 	char *msg, *mod;
 	char *hdrs[HDRS_N] = {NULL};
-	char *path = NULL;
+	char *path[16] = {NULL};
 	char *msgnum = NULL;
 	long msglen, modlen;
 	int demime = 0;
@@ -96,6 +95,7 @@ int pg(char *argv[])
 	int forward = 0;
 	int newmsg = 0;
 	int hdrs_n = 0;
+	int path_n = 0;
 	int addr;
 	int i;
 	for (i = 0; argv[i] && argv[i][0] == '-'; i++) {
@@ -108,7 +108,7 @@ int pg(char *argv[])
 		if (argv[i][1] == 'f')
 			forward = 1;
 		if (argv[i][1] == 'b') {
-			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+			path[path_n++] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
 		if (argv[i][1] == 'i') {
@@ -133,15 +133,15 @@ int pg(char *argv[])
 		free(msg);
 		return 0;
 	}
-	if (!path && argv[i])
-		path = argv[i++];
+	if (!path[0] && argv[i])
+		path[0] = argv[i++];
 	if (!msgnum && argv[i])
 		msgnum = argv[i++];
-	if (msgnum[0] != '=' && strchr(msgnum, '@') != NULL) {
-		path = strchr(msgnum, '@') + 1;
-		path[-1] = '\0';
+	if (msgnum && msgnum[0] != '=' && strchr(msgnum, '@') != NULL) {
+		path[0] = strchr(msgnum, '@') + 1;
+		path[0][-1] = '\0';
 	}
-	if (!path || !msgnum) {
+	if (!path[0] || !msgnum) {
 		printf("%s", usage);
 		return 1;
 	}
@@ -149,7 +149,7 @@ int pg(char *argv[])
 		addr = mbox_mid(path, msgnum + 1);
 	else
 		addr = atoi(msgnum);
-	if (addr >= 0 && !mbox_ith(path, addr, &msg, &msglen)) {
+	if (addr >= 0 && !mbox_ith(path[0], addr, &msg, &msglen)) {
 		if (demime && !msg_demime(msg, msglen, &mod, &modlen)) {
 			free(msg);
 			msg = mod;
