@@ -52,10 +52,10 @@ static int from_(char *s)
 
 static int msg_read(void)
 {
-	struct sbuf *sb;
 	char *ln;
 	int hdrout = 0;
 	int hlen = 0;
+	int len = 0;
 	while ((ln = lnext())) {
 		fputs(ln, stdout);
 		if (ln[0] != '\n')
@@ -63,34 +63,32 @@ static int msg_read(void)
 	}
 	if (!ln)
 		return -1;
-	sb = sbuf_make();
-	sbuf_str(sb, ln);
+	len += strlen(ln);
 	/* read headers */
 	while ((ln = lnext())) {
 		if (from_(ln) || ln[0] == '\n') {
 			lback();
 			break;
 		}
-		sbuf_str(sb, ln);
+		len += strlen(ln);
 		if (ln[0] != ' ' && ln[0] != '\t')
 			hdrout = hdrs_find(ln) >= 0;
 		if (hdrout)
 			fputs(ln, stdout);
 	}
-	hlen = sbuf_len(sb);
+	hlen = len;
 	/* read body */
 	while ((ln = lnext())) {
 		if (from_(ln)) {
 			lback();
 			break;
 		}
-		sbuf_str(sb, ln);
-		if (maxlen <= 0 || sbuf_len(sb) - hlen < maxlen)
+		len += strlen(ln);
+		if (maxlen <= 0 || len - hlen < maxlen)
 			fputs(ln, stdout);
 	}
-	if (maxlen > 0 && sbuf_len(sb) - hlen >= maxlen)
+	if (maxlen > 0 && len - hlen >= maxlen)
 		fputs("\n", stdout);
-	sbuf_free(sb);
 	return 0;
 }
 
