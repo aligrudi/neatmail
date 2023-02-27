@@ -183,6 +183,12 @@ static int ex_region(char *loc, int *beg, int *end)
 	return 0;
 }
 
+static int ec_print(char *arg)
+{
+	printf("%d\n", pos);
+	return 0;
+}
+
 static int ec_rm(char *arg)
 {
 	mbox_set(mbox, pos, "", 0);
@@ -349,6 +355,8 @@ static int ex_exec(char *ec)
 		return ec_threadjoin(arg);
 	if (!strcmp("ch", cmd) || !strcmp("chop", cmd))
 		return ec_chop(arg);
+	if (!strcmp("p", cmd))
+		return ec_print(arg);
 	return 1;
 }
 
