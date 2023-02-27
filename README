@@ -42,11 +42,26 @@ subject field of message headers, except when the pattern is "^field:
 value", in which it is matched against the specified header field
 instead.
 
+For instance, in the following example, ex removes message 1, moves
+all messages whose subjects match ".*neatmail.*" to mail.mbox file,
+and updates the mbox.
+
+$ neatmail ex -b new.mbox <<EOF
+O000
+O001
+:rm
+R003
+R002
+N004
+:%g/^subject:.*neatmail.*/mv mail.mbox
+:w
+EOF
+
 SUGGESTED USAGE
 ===============
 
 Generate a message listing (see mk options):
-$ neatmail mk -st -r inbox >inbox.nm
+$ neatmail mk -st -r -b inbox >inbox.nm
 
 Open inbox.nm in an editor, change the status field of
 messages, and append ex commands.
@@ -64,8 +79,24 @@ LARGE MBOXES
 
 An mbox can gradually get very large, particularly because of messages
 with large attachments.  This makes Neatmail commands slow.  To reduce
-the size of such mboxes, I copy large messages to a separate mbox (:cp
-ex command) and chop them (:chop ex command).  When I need one of
-these messages, I use the chopped message to obtain its message ID and
-use that to page the original message in the other mbox.  This, of
-course, I do in a script.
+the size of such mboxes, I copy old messages to other mbox files using
+:mv ex command.  Then, I use the pn command to obtain a smaller
+version of this mbox file by removing message bodies and unnecessary
+headers (I use a Makefile to update them automatically):
+
+$ neatmail pn -H -s2 <old >old.i
+
+Neatmail commands can read multiple mbox files.  This make it possible
+to generate a mail listing using the pruned mbox:
+
+$ neatmail mk -m6 -st -r -b inbox -b old.i >inbox.nm
+
+The -m option forces mk to include the first few letters of the file
+that contains this message, like "R0020@old.i", which means the 20th
+message in the old.i mbox file (it does so only for files not in the
+first file specified with -b).  Like mk, ex and pg commands support
+multiple mbox files, each specified using -b.  For pg, it is also
+possible to specify message file in the message number.  For instance,
+the following command prints the 20th message in old:
+
+$ neatmail pg -i 20@old
