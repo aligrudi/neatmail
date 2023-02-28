@@ -359,10 +359,9 @@ static int fromdate(char *s)
 	s = readtok(s, tok);		/* minute */
 	min = atoi(tok);
 	s = readtok(s, tok);		/* seconds (optional) */
-	if (sec < 60) {
-		sec = atoi(tok);
+	sec = atoi(tok);
+	if (sec < 60)
 		s = readtok(s, tok);	/* year */
-	}
 	year = atoi(tok);
 	return ((year - 1970) * 400 + mon * 31 + day) * 24 * 3600 +
 		hour * 3600 + min * 60 + sec;
