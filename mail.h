@@ -17,6 +17,7 @@ int mbox_get(struct mbox *mbox, int i, char **msg, long *msz);
 int mbox_set(struct mbox *mbox, int i, char *msg, long msz);
 int mbox_pos(struct mbox *mbox, int n, int *idx);
 int mbox_ith(char *path, int n, char **msg, long *msz);
+int mbox_off(char *path, long beg, long end, char **msg, long *msz);
 
 char *msg_get(char *msg, long msz, char *hdr);
 int msg_set(char *msg, long msglen, char **mod, long *modlen, char *hdr, char *val);

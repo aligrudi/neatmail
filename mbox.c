@@ -303,3 +303,23 @@ int mbox_ith(char *path, int n, char **msg, long *msz)
 	free(buf);
 	return 0;
 }
+
+int mbox_off(char *path, long beg, long end, char **msg, long *msz)
+{
+	int fd = open(path, O_RDONLY);
+	long nr;
+	if (fd < 0)
+		return 1;
+	if (lseek(fd, beg, 0) < 0) {
+		close(fd);
+		return 1;
+	}
+	*msg = malloc(end - beg + 1);
+	if (!*msg)
+		return 1;
+	nr = xread(fd, *msg, end - beg);
+	(*msg)[nr] = '\0';
+	*msz = nr;
+	close(fd);
+	return 0;
+}
