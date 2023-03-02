@@ -84,7 +84,7 @@ the size of such mboxes, I copy old messages to other mbox files using
 version of this mbox file by removing message bodies and unnecessary
 headers (I use a Makefile to update them automatically):
 
-$ neatmail pn -H -s2 <old >old.i
+$ neatmail pn -H -s0 <old >old.i
 
 Neatmail commands can read multiple mbox files.  This make it possible
 to generate a mail listing using the pruned mbox:
