@@ -11,8 +11,10 @@
 static char *hdrs[NHDRS];
 static int hdrs_n;
 static char lnext_buf[4096];
-static char lnext_back = 0;
-static int maxlen;
+static char lnext_back;
+static int maxlen = -1;		/* body length to include */
+static long pos;		/* input file offset */
+static char *path = NULL;	/* mbox address for neatmail-source header */
 
 static char *lnext(void)
 {
@@ -20,6 +22,7 @@ static char *lnext(void)
 		lnext_back = 0;
 		return lnext_buf;
 	}
+	pos += strlen(lnext_buf);
 	return fgets(lnext_buf, sizeof(lnext_buf), stdin);
 }
 
@@ -50,12 +53,11 @@ static int from_(char *s)
 			s[3] == 'm' && s[4] == ' ';
 }
 
-static int msg_read(void)
+static int msg_read(int n)
 {
 	char *ln;
 	int hdrout = 0;
-	int hlen = 0;
-	int len = 0;
+	long beg, body;
 	while ((ln = lnext())) {
 		fputs(ln, stdout);
 		if (ln[0] != '\n')
@@ -63,31 +65,31 @@ static int msg_read(void)
 	}
 	if (!ln)
 		return -1;
-	len += strlen(ln);
+	beg = pos;
 	/* read headers */
 	while ((ln = lnext())) {
 		if (from_(ln) || ln[0] == '\n') {
 			lback();
 			break;
 		}
-		len += strlen(ln);
 		if (ln[0] != ' ' && ln[0] != '\t')
 			hdrout = hdrs_find(ln) >= 0;
 		if (hdrout)
 			fputs(ln, stdout);
 	}
-	hlen = len;
+	body = pos;
 	/* read body */
 	while ((ln = lnext())) {
 		if (from_(ln)) {
 			lback();
 			break;
 		}
-		len += strlen(ln);
-		if (maxlen <= 0 || len - hlen < maxlen)
+		if (maxlen < 0 || pos - body + strlen(ln) < maxlen)
 			fputs(ln, stdout);
 	}
-	if (maxlen > 0 && len - hlen >= maxlen)
+	if (path && maxlen == 0)
+		printf("Neatmail-Source: %d@%s %ld %ld\n", n, path, beg, pos);
+	if (maxlen >= 0 && pos - body >= maxlen)
 		fputs("\n", stdout);
 	return 0;
 }
@@ -97,7 +99,8 @@ static char *usage =
 	"options:\n"
 	"   -h hdr  \tspecify headers to include\n"
 	"   -H      \tinclude the default set of headers\n"
-	"   -s size \tmaximum message body length to include\n";
+	"   -s size \tmaximum message body length to include\n"
+	"   -b mbox \tinclude a neatmail-source: header\n";
 
 int pn(char *argv[])
 {
@@ -137,8 +140,12 @@ int pn(char *argv[])
 			maxlen = atoi(argv[i][2] ? argv[i] + 2 : argv[++i]);
 			continue;
 		}
+		if (argv[i][1] == 'b') {
+			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+			continue;
+		}
 	}
-	while (!msg_read())
+	while (!msg_read(n))
 		n++;
 	fprintf(stderr, "Messages: %d\n", n);
 	return 0;
