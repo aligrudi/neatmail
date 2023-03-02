@@ -81,7 +81,8 @@ static char *usage =
 	"   -r      \tgenerate a reply\n"
 	"   -f      \tgenerate a forward\n"
 	"   -n      \tgenerate a new message\n"
-	"   -a file \tadd an attachment\n";
+	"   -a file \tadd an attachment\n"
+	"   -s      \tfollow neatmail-source: header\n";
 
 int pg(char *argv[])
 {
@@ -93,6 +94,7 @@ int pg(char *argv[])
 	int demime = 0;
 	int reply = 0;
 	int forward = 0;
+	int source = 0;
 	int newmsg = 0;
 	int hdrs_n = 0;
 	int path_n = 0;
@@ -107,6 +109,8 @@ int pg(char *argv[])
 			newmsg = 1;
 		if (argv[i][1] == 'f')
 			forward = 1;
+		if (argv[i][1] == 's')
+			source = 1;
 		if (argv[i][1] == 'b') {
 			path[path_n++] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
@@ -150,6 +154,19 @@ int pg(char *argv[])
 	else
 		addr = atoi(msgnum);
 	if (addr >= 0 && !mbox_ith(path[0], addr, &msg, &msglen)) {
+		char *hdr;
+		char box[512];
+		long beg, end;
+		int num;
+		if (source && (hdr = msg_get(msg, msglen, "Neatmail-Source:")) != NULL) {
+			while (*hdr && *hdr != ' ')
+				hdr++;
+			free(msg);
+			if (sscanf(hdr, "%d@%s %ld %ld", &num, box, &beg, &end) != 4)
+				return 1;
+			if (mbox_off(box, beg, end, &msg, &msglen) != 0)
+				return 1;
+		}
 		if (demime && !msg_demime(msg, msglen, &mod, &modlen)) {
 			free(msg);
 			msg = mod;
