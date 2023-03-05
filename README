@@ -35,14 +35,14 @@ The list of named commands are as follows:
 These commands act on the current message by default (if applicable),
 but different messages may be specified using ex-like addresses.  For
 instance, "2,5rm" removes messages 2 through 5.  Addresses may contain
-search statements, like "/pattern/rm", in which the pattern is a POSIX
+search patterns, like "/pattern/rm", in which the pattern is a POSIX
 extended regular expression (the same applies to global command
-patterns like "%g/pattern/rm").  Search patterns are matched in the
+patterns like "%g/pattern/rm").  Search patterns are matched to the
 subject field of message headers, except when the pattern is "^field:
 value", in which it is matched against the specified header field
 instead.
 
-For instance, in the following example, ex removes message 1, moves
+For instance, in the following example ex removes message 1, moves
 all messages whose subjects match ".*neatmail.*" to mail.mbox file,
 and updates the mbox.
 
@@ -77,26 +77,37 @@ It is more convenient to place these commands in a script.
 LARGE MBOXES
 ============
 
-An mbox can gradually get very large, particularly because of messages
-with large attachments.  This makes Neatmail commands slow.  To reduce
-the size of such mboxes, I copy old messages to other mbox files using
-:mv ex command.  Then, I use the pn command to obtain a smaller
-version of this mbox file by removing message bodies and unnecessary
-headers (I use a Makefile to update them automatically):
+An mbox file can gradually get very large, particularly because of
+messages with large attachments.  This makes Neatmail commands slow.
+To reduce the size of such files, I move old messages to other files
+using :mv ex command.  Then, I use the pn command to obtain smaller
+versions of these mbox files by removing message bodies and
+unnecessary headers (I use a Makefile to update them automatically):
 
 $ neatmail pn -H -s0 <old >old.i
 
-Neatmail commands can read multiple mbox files.  This make it possible
-to generate a mail listing using the pruned mbox:
+Note that the original messages are kept just in case their contents
+are necessary.  Neatmail commands can read multiple mbox files.  This
+makes it possible to generate a mail listing of the main mbox and
+pruned files:
 
 $ neatmail mk -m6 -st -r -b inbox -b old.i >inbox.nm
 
 The -m option forces mk to include the first few letters of the file
 that contains this message, like "R0020@old.i", which means the 20th
-message in the old.i mbox file (it does so only for files not in the
-first file specified with -b).  Like mk, ex and pg commands support
-multiple mbox files, each specified using -b.  For pg, it is also
-possible to specify message file in the message number.  For instance,
-the following command prints the 20th message in old:
+message in the old.i mbox file (it does so only for messages not in
+the first file specified with -b).  ex and pg commands also support
+multiple mbox files (each can be specified with a separate -b).  To
+obtain the contents of the message, the original file can be read.
+For instance, the following command prints the 20th message in old:
 
 $ neatmail pg -i 20@old
+
+To make pg faster for large mbox files, pn includes a Neatmail-Source
+header to indicate the exact position of the original message (before
+pruning) when -b option is specified.  When accessing the message, pg
+reads it from the location indicated by Neatmail-Source, if the header
+is present and -s is provided.  Because the offset of the message is
+stored in Neatmail-Source, the whole mbox need not be read and it is
+much faster (compare pg -s -i 20@old.i and pg -i 20@old in the above
+example, after adding -b old to pn).
