@@ -99,9 +99,7 @@ static int mbox_extend(struct mbox *mbox, int cnt)
 	mbox->msgmax = mbox->msgmax + cnt;
 	mbox->msg = mextend(mbox->msg, mbox->msgcnt, mbox->msgmax, sizeof(mbox->msg[0]));
 	mbox->msglen = mextend(mbox->msglen, mbox->msgcnt, mbox->msgmax, sizeof(mbox->msglen[0]));
-	mbox->mod = mextend(mbox->mod, mbox->msgcnt, mbox->msgmax, sizeof(mbox->mod[0]));
-	mbox->modlen = mextend(mbox->modlen, mbox->msgcnt, mbox->msgmax, sizeof(mbox->modlen[0]));
-	if (!mbox->msg || !mbox->msglen || !mbox->mod || !mbox->modlen)
+	if (!mbox->msg || !mbox->msglen)
 		return 1;
 	return 0;
 }
@@ -174,6 +172,12 @@ struct mbox *mbox_open(char **path)
 			mbox_free(mbox);
 			return NULL;
 		}
+	}
+	mbox->mod = calloc(mbox->msgcnt, sizeof(mbox->mod[0]));
+	mbox->modlen = calloc(mbox->msgcnt, sizeof(mbox->modlen[0]));
+	if (!mbox->mod || !mbox->modlen) {
+		mbox_free(mbox);
+		return NULL;
 	}
 	return mbox;
 }
