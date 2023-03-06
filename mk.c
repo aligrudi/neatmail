@@ -147,11 +147,11 @@ static void mk_sum(struct mbox *mbox)
 
 static char *segment(char *d, char *s, int m)
 {
-	char *r = strchr(s, m);
-	char *e = r ? r + 1 : strchr(s, '\0');
-	memcpy(d, s, e - s);
-	d[e - s] = '\0';
-	return e;
+	while (*s)
+		if ((*d++ = *s++) == m)
+			break;
+	*d = '\0';
+	return s;
 }
 
 static char *usage =
@@ -249,12 +249,11 @@ int mk(char *argv[])
 			if (j)
 				printf("\n");
 			while ((cln = segment(tok, cln, ':')) && tok[0]) {
-				char *fmt = tok;
 				char *hdr = tok;
 				char *val;
-				int wid = atoi(fmt);
-				while (isdigit((unsigned char) *hdr))
-					hdr++;
+				int wid = 0;
+				while (*hdr >= '0' && *hdr <= '9')
+					wid = wid * 10 + (*hdr++ - '0');
 				printf("\t");
 				if (!strcmp("~subject:", hdr)) {
 					for (k = 0; k < levs[i]; k++)
