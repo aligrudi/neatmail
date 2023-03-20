@@ -364,16 +364,21 @@ static int ec_stat(char *ec)
 {
 	char *val;
 	char newval[16];
-	int c0 = (unsigned char) ec[0];
-	int c1 = isalpha((unsigned char) ec[1]) ? ec[1] : 0;
+	int c0 = ec[0] >= 'A' && ec[0] <= 'Z' ? ec[0] : 0;
+	int c1 = ec[1] >= 'A' && ec[1] <= 'Z' ? ec[1] : 0;
 	int s0 = 'N';
 	int s1 = 0;
-	int i = atoi(ec + 1 + (c1 != 0));
+	int i = 1 + (c1 != 0);
+	int n = 0;
 	char *msg, *mod;
 	long msglen, modlen;
-	if (mbox_get(mbox, i, &msg, &msglen))
+	while (ec[i] >= '0' && ec[i] <= '9')
+		n = n * 10 + ec[i++] - '0';
+	if (ec[i] == '@')	/* message not in the main mbox */
 		return 1;
-	pos = i;
+	if (mbox_get(mbox, n, &msg, &msglen))
+		return 1;
+	pos = n;
 	val = msg_get(msg, msglen, "status:");
 	if (val) {
 		val += strlen("status:");
