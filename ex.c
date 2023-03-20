@@ -191,8 +191,7 @@ static int ec_print(char *arg)
 
 static int ec_rm(char *arg)
 {
-	mbox_set(mbox, pos, "", 0);
-	return 0;
+	return mbox_set(mbox, pos, "", 0);
 }
 
 static int ec_cp(char *arg)
@@ -202,8 +201,10 @@ static int ec_cp(char *arg)
 	long msz;
 	int fd;
 	arg = ex_arg(arg, box);
-	fd = open(box, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
-	mbox_get(mbox, pos, &msg, &msz);
+	if (mbox_get(mbox, pos, &msg, &msz))
+		return 1;
+	if ((fd = open(box, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR)) < 0)
+		return 1;
 	xwrite(fd, msg, msz);
 	close(fd);
 	return 0;
@@ -222,10 +223,12 @@ static int ec_hd(char *arg)
 	char val[EXLEN];
 	char *msg, *mod;
 	long msglen, modlen;
-	struct sbuf *sb = sbuf_make();
+	struct sbuf *sb;
 	arg = ex_arg(arg, hdr);
 	arg = ex_arg(arg, val);
-	mbox_get(mbox, pos, &msg, &msglen);
+	if (mbox_get(mbox, pos, &msg, &msglen))
+		return 1;
+	sb = sbuf_make();
 	sbuf_printf(sb, "%s %s\n", hdr, val);
 	if (msg_set(msg, msglen, &mod, &modlen, hdr, sbuf_buf(sb)))
 		return 1;
@@ -241,7 +244,8 @@ static int ec_ft(char *arg)
 	char *msg, *mod;
 	long msglen, modlen;
 	arg = ex_arg(arg, cmd);
-	mbox_get(mbox, pos, &msg, &msglen);
+	if (mbox_get(mbox, pos, &msg, &msglen))
+		return 1;
 	if (xpipe(cmd, msg, msglen, &mod, &modlen))
 		return 1;
 	mbox_set(mbox, pos, mod, modlen);
