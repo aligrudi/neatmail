@@ -1,18 +1,31 @@
 NEATMAIL
 ========
 
-Neatmail is a noninteractive mail client.  It generates a listing of
-the messages in a mailbox in mbox format and executes a list of
-ex-like commands on it.
+Neatmail is a noninteractive mail client.  It generates listings of
+and executes ex-like commands on messages in mailboxes in mbox format.
 
 Neatmail provides the following commands:
 
-* mk: generate a listing of the mails in an mbox.
+* mk: generate a listing of messages in an mbox.
 * ex: execute the specified commands on an mbox.
 * pg: page a message in an mbox.
 * ns: check for new messages among several mboxes.
 * pn: prune an mbox (shorten messages).
 * me: MIME-encode message headers.
+
+For each message, the mk command writes tab-separated values of some
+of its headers.  This set of headers and the maximum length of each of
+them can be specified with -0 options.  In addition to message
+headers, ~subject (more compact subject header with thread
+indentation), ~size (message size), and ~date (receiving date) can
+also be given.  Each line begins with the value of the status header
+of the message (N if it is missing) and its message number.  This is
+an example:
+
+$ neatmail mk -0 10from:20~subject: -st -b test/test.mbox
+N00000	[A <a@a.eu>]	[Message from A      ]
+N00001	[B <b@b.eu>]	[Message from B      ]
+N00002	[C <c@c.eu>]	[Message from C      ]
 
 The ex command reads a list of commands from the standard input and
 executes them on a given mbox file.  It ignores all input lines except
@@ -23,8 +36,8 @@ the current message.  Lines beginning with a colon are named commands.
 The list of named commands are as follows:
 
 * rm: remove the current message.
-* cp: copy the current message to the given mbox.
-* mv: move the current message to the given mbox.
+* cp: copy the current message to another mbox.
+* mv: move the current message to another mbox.
 * hd, set: change the value of the given header of the current message.
 * ft, filt: filter the message through the given command.
 * w: write the mbox.
@@ -42,9 +55,9 @@ subject field of message headers, except when the pattern is "^field:
 value", in which it is matched against the specified header field
 instead.
 
-For instance, in the following example ex removes message 1, moves
-all messages whose subjects match ".*neatmail.*" to mail.mbox file,
-and updates the mbox.
+In the following example, ex removes message 1, moves all messages
+whose subjects match ".*neatmail.*" to mail.mbox file, and updates the
+mbox.
 
 $ neatmail ex -b new.mbox <<EOF
 O000
