@@ -185,11 +185,13 @@ struct mbox *mbox_open(char **path)
 void mbox_free(struct mbox *mbox)
 {
 	int i;
-	for (i = 0; i < mbox->msgcnt; i++)
-		free(mbox->mod[i]);
 	for (i = 0; i < mbox->cnt; i++) {
 		free(mbox->boxpath[i]);
 		free(mbox->boxbuf[i]);
+	}
+	if (mbox->mod) {
+		for (i = 0; i < mbox->msgcnt; i++)
+			free(mbox->mod[i]);
 	}
 	free(mbox->msg);
 	free(mbox->msglen);
