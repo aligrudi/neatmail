@@ -22,7 +22,7 @@ also be given.  Each line begins with the value of the status header
 of the message (N if it is missing) and its message number.  This is
 an example:
 
-$ neatmail mk -0 10from:20~subject: -st -b test/test.mbox
+$ neatmail mk -0 10from:20~subject: -st test/test.mbox
 N00000	[A <a@a.eu>]	[Message from A      ]
 N00001	[B <b@b.eu>]	[Message from B      ]
 N00002	[C <c@c.eu>]	[Message from C      ]
@@ -59,7 +59,7 @@ In the following example, ex removes message 1, moves all messages
 whose subjects match ".*neatmail.*" to mail.mbox file, and updates the
 mbox.
 
-$ neatmail ex -b new.mbox <<EOF
+$ neatmail ex new.mbox <<EOF
 O000
 O001
 :rm
@@ -74,53 +74,53 @@ SUGGESTED USAGE
 ===============
 
 Generate a message listing (see mk options):
-$ neatmail mk -st -r -b inbox >inbox.nm
+$ neatmail mk -st -r inbox >inbox.nm
 
 Open inbox.nm in an editor, change the status field of
 messages, and append ex commands.
 
 Page, reply, or forward messages (see pg options):
-$ neatmail pg -b inbox -i 23 -m -h from: -h subject: -h to: -h cc: >mail
+$ neatmail pg -m -h from: -h subject: -h to: -h cc: 23@inbox >mail
 
 Execute the commands specified in inbox.nm:
-$ (cat inbox.nm; echo ":w") | neatmail ex -b inbox
+$ (cat inbox.nm; echo ":w") | neatmail ex inbox
 
-It is more convenient to place these commands in a script.
+It is more convenient to place these commands in a script.  For
+fetching and sending messages, I use https://github.com/aligrudi/neatpop3
+and https://github.com/aligrudi/neatsmtp.
 
 LARGE MBOXES
 ============
 
-An mbox file can gradually get very large, particularly because of
+Mbox files can gradually get very large, particularly because of
 messages with large attachments.  This makes Neatmail commands slow.
-To reduce the size of such files, I move old messages to other files
-using :mv ex command.  Then, I use the pn command to obtain smaller
-versions of these mbox files by removing message bodies and
+To reduce the size of such files, I move old messages to new, archival
+mboxes using :mv ex command.  Then, I use the pn command to obtain
+smaller versions of these mbox files by removing message bodies and
 unnecessary headers (I use a Makefile to update them automatically):
 
-$ neatmail pn -H -s0 <old >old.i
+$ neatmail pn -H -s0 old >old.i
 
 Note that the original messages are kept just in case their contents
-are necessary.  Neatmail commands can read multiple mbox files.  This
+are needed.  Neatmail commands can read multiple mbox files.  This
 makes it possible to generate a mail listing of the main mbox and
 pruned files:
 
-$ neatmail mk -m6 -st -r -b inbox -b old.i >inbox.nm
+$ neatmail mk -m6 -st -r inbox old.i >inbox.nm
 
 The -m option forces mk to include the first few letters of the file
 that contains this message, like "R0020@old.i", which means the 20th
 message in the old.i mbox file (it does so only for messages not in
-the first file specified with -b).  ex and pg commands also support
-multiple mbox files (each can be specified with a separate -b).  To
-obtain the contents of the message, the original file can be read.
-For instance, the following command prints the 20th message in old:
+the first given mbox file).  To obtain the contents of the message,
+the original file can be read.  For instance, the following command
+prints the 20th message in old:
 
 $ neatmail pg -i 20@old
 
 To make pg faster for large mbox files, pn includes a Neatmail-Source
 header to indicate the exact position of the original message (before
-pruning) when -b option is specified.  When accessing the message, pg
-reads it from the location indicated by Neatmail-Source, if the header
-is present and -s is provided.  Because the offset of the message is
-stored in Neatmail-Source, the whole mbox need not be read and it is
-much faster (compare pg -s -i 20@old.i and pg -i 20@old in the above
-example, after adding -b old to pn).
+pruning).  When accessing the message, pg reads it from the location
+indicated by Neatmail-Source, if the header is present and -s is
+provided.  Because the offset of the message is stored in
+Neatmail-Source, the whole mbox need not be read and it is much faster
+(compare pg -s -i 20@old.i and pg -i 20@old in the above example).
