@@ -115,7 +115,7 @@ the first given mbox file).  To obtain the contents of the message,
 the original file can be read.  For instance, the following command
 prints the 20th message in old:
 
-$ neatmail pg -i 20@old
+$ neatmail pg 20@old
 
 To make pg faster for large mbox files, pn includes a Neatmail-Source
 header to indicate the exact position of the original message (before
@@ -123,4 +123,4 @@ pruning).  When accessing the message, pg reads it from the location
 indicated by Neatmail-Source, if the header is present and -s is
 provided.  Because the offset of the message is stored in
 Neatmail-Source, the whole mbox need not be read and it is much faster
-(compare pg -s -i 20@old.i and pg -i 20@old in the above example).
+(compare pg -s 20@old.i and pg 20@old in the above example).
