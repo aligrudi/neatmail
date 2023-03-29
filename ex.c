@@ -58,7 +58,8 @@ static char *ex_arg(char *s, char *arg)
 				s++;
 			*arg++ = *s++;
 		}
-		s++;
+		if (*s)
+			s++;
 	} else {
 		while (*s && !isspace((unsigned char) *s)) {
 			if (*s == '\\' && s[1])
@@ -68,6 +69,13 @@ static char *ex_arg(char *s, char *arg)
 	}
 	*arg = '\0';
 	return s;
+}
+
+static int ex_eol(char *s)
+{
+	while (isspace((unsigned char) *s))
+		s++;
+	return !*s;
 }
 
 static int ex_keyword(char *pat)
@@ -219,20 +227,20 @@ static int ec_mv(char *arg)
 
 static int ec_hd(char *arg)
 {
-	char hdr[EXLEN];
-	char val[EXLEN];
+	char hdr[EXLEN], val[EXLEN];
+	char hln[EXLEN];
 	char *msg, *mod;
 	long msglen, modlen;
-	struct sbuf *sb;
 	arg = ex_arg(arg, hdr);
-	arg = ex_arg(arg, val);
 	if (mbox_get(mbox, pos, &msg, &msglen))
 		return 1;
-	sb = sbuf_make();
-	sbuf_printf(sb, "%s %s\n", hdr, val);
-	if (msg_set(msg, msglen, &mod, &modlen, hdr, sbuf_buf(sb)))
+	hln[0] = '\0';
+	if (!ex_eol(arg)) {
+		arg = ex_arg(arg, val);
+		snprintf(hln, sizeof(hln), "%s %s\n", hdr, val);
+	}
+	if (msg_set(msg, msglen, &mod, &modlen, hdr, hln))
 		return 1;
-	sbuf_free(sb);
 	mbox_set(mbox, pos, mod, modlen);
 	free(mod);
 	return 0;
