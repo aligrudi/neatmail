@@ -72,7 +72,7 @@ static int mbox_mid(char **path, char *mid)
 }
 
 static char *usage =
-	"usage: neatmail pg [options]\n\n"
+	"usage: neatmail pg [options] [msg@path]\n\n"
 	"options:\n"
 	"   -b path \tmbox path\n"
 	"   -i msg  \tmsg number or message id (=msg_id)\n"
