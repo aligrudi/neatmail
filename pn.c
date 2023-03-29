@@ -8,27 +8,29 @@
 
 #define NHDRS		128
 
-static char *hdrs[NHDRS];
+static char *hdrs[NHDRS];	/* included headers */
 static int hdrs_n;
-static char lnext_buf[4096];
-static char lnext_back;
+static char pn_buf[4096];	/* last line */
+static char pn_rev;		/* push back the last line */
 static int maxlen = -1;		/* body length to include */
-static long pos;		/* input file offset */
-static char *path = NULL;	/* mbox address for neatmail-source header */
+static char *pn_path;		/* input path */
+static FILE *pn_fp;		/* input file */
+static long pn_pos;		/* file position */
+static int pn_num;		/* message number */
 
 static char *lnext(void)
 {
-	if (lnext_back) {
-		lnext_back = 0;
-		return lnext_buf;
+	if (pn_rev) {
+		pn_rev = 0;
+		return pn_buf;
 	}
-	pos += strlen(lnext_buf);
-	return fgets(lnext_buf, sizeof(lnext_buf), stdin);
+	pn_pos += strlen(pn_buf);
+	return fgets(pn_buf, sizeof(pn_buf), pn_fp);
 }
 
 static void lback(void)
 {
-	lnext_back = 1;
+	pn_rev = 1;
 }
 
 static int hdrs_add(char *hdr)
@@ -53,7 +55,7 @@ static int from_(char *s)
 			s[3] == 'm' && s[4] == ' ';
 }
 
-static int msg_read(int n)
+static int pn_one(void)
 {
 	char *ln;
 	int hdrout = 0;
@@ -65,7 +67,7 @@ static int msg_read(int n)
 	}
 	if (!ln)
 		return -1;
-	beg = pos;
+	beg = pn_pos;
 	/* read headers */
 	while ((ln = lnext())) {
 		if (from_(ln) || ln[0] == '\n') {
@@ -77,35 +79,54 @@ static int msg_read(int n)
 		if (hdrout)
 			fputs(ln, stdout);
 	}
-	body = pos;
+	body = pn_pos;
 	/* read body */
 	while ((ln = lnext())) {
 		if (from_(ln)) {
 			lback();
 			break;
 		}
-		if (maxlen < 0 || pos - body + strlen(ln) < maxlen)
+		if (maxlen < 0 || pn_pos - body + strlen(ln) < maxlen)
 			fputs(ln, stdout);
 	}
-	if (path && maxlen == 0)
-		printf("Neatmail-Source: %d@%s %ld %ld\n", n, path, beg, pos);
-	if (maxlen >= 0 && pos - body >= maxlen)
+	if (pn_path && maxlen == 0)
+		printf("Neatmail-Source: %d@%s %ld %ld\n", pn_num, pn_path, beg, pn_pos);
+	if (maxlen >= 0 && pn_pos - body >= maxlen)
 		fputs("\n", stdout);
 	return 0;
 }
 
+static int pn_proc(char *path)
+{
+	if (path && (pn_fp = fopen(path, "r")) == NULL)
+		return 1;
+	if (path == NULL)
+		pn_fp = stdin;
+	pn_path = path;
+	pn_pos = 0;
+	pn_num = 0;
+	pn_buf[0] = '\0';
+	while (pn_one() == 0)
+		pn_num++;
+	if (path != NULL)
+		fclose(pn_fp);
+	fprintf(stderr, "%s: %d messages\n", path ? path : "stdin", pn_num);
+	return 0;
+}
+
 static char *usage =
-	"usage: neatmail pn [options] <imbox >ombox\n\n"
+	"usage: neatmail pn [options] [imbox] <imbox >ombox\n\n"
 	"options:\n"
 	"   -h hdr  \tspecify headers to include\n"
 	"   -H      \tinclude the default set of headers\n"
 	"   -s size \tmaximum message body length to include\n"
-	"   -b mbox \tinclude a neatmail-source: header\n";
+	"   -b mbox \tmbox path\n";
 
 int pn(char *argv[])
 {
+	char *path[16] = {NULL};
+	int path_n = 0;
 	int i;
-	int n = 0;
 	if (!argv[0]) {
 		printf("%s", usage);
 		return 1;
@@ -141,12 +162,16 @@ int pn(char *argv[])
 			continue;
 		}
 		if (argv[i][1] == 'b') {
-			path = argv[i][2] ? argv[i] + 2 : argv[++i];
+			path[path_n++] = argv[i][2] ? argv[i] + 2 : argv[++i];
 			continue;
 		}
 	}
-	while (!msg_read(n))
-		n++;
-	fprintf(stderr, "Messages: %d\n", n);
+	for (; argv[i]; i++)
+		path[path_n++] = argv[i];
+	for (i = 0; i < path_n; i++)
+		if (pn_proc(path[i]) != 0)
+			fprintf(stderr, "pn: cannot open <%s>\n", path[i]);
+	if (path_n == 0)
+		pn_proc(NULL);
 	return 0;
 }
