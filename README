@@ -1,26 +1,30 @@
 NEATMAIL
 ========
 
-Neatmail is a noninteractive mail client.  It generates listings of
+Neatmail is a noninteractive mail client.  It generates listings of,
 and executes ex-like commands on messages in mailboxes in mbox format.
 
-Neatmail provides the following commands:
+Neatmail provides the following commands (when invoked without an
+argument, most of them show a summary of supported options).
 
 * mk: generate a listing of messages in an mbox.
 * ex: execute the specified commands on an mbox.
 * pg: page a message in an mbox.
-* ns: check for new messages among several mboxes.
 * pn: prune an mbox (shorten messages).
+* ns: check for new messages among several mboxes.
 * me: MIME-encode message headers.
 
 For each message, the mk command writes tab-separated values of some
 of its headers.  This set of headers and the maximum length of each of
-them can be specified with -0 options.  In addition to message
-headers, ~subject (more compact subject header with thread
-indentation), ~size (message size), and ~date (receiving date) can
-also be given.  Each line begins with the value of the status header
-of the message (N if it is missing) and its message number.  This is
-an example:
+them can be specified with -0 option.  In addition to message headers,
+~subject (more compact subject header with thread indentation), ~size
+(message size), and ~date (receiving date) can also be given.  Each
+line begins with the value of the status header of the message (N if
+it is missing) and its message number.  Neatmail assumes that the
+status of a message, if present, is one or two capital letters (the
+first letter may be N for new, R for read, and O for old; the second
+letter, if present, may indicate user-defined categories).  This is an
+example invocation of mk:
 
 $ neatmail mk -0 10from:20~subject: -st test/test.mbox
 N00000	[A <a@a.eu>]	[Message from A      ]
@@ -35,10 +39,10 @@ header of the message whose number follows the letter.  It also marks
 the current message.  Lines beginning with a colon are named commands.
 The list of named commands are as follows:
 
-* rm: remove the current message.
-* cp: copy the current message to another mbox.
-* mv: move the current message to another mbox.
-* hd, set: change the value of the given header of the current message.
+* rm: remove the message.
+* cp: copy the message to another mbox.
+* mv: move the message to another mbox.
+* hd, set: change the value of the given header of the message.
 * ft, filt: filter the message through the given command.
 * w: write the mbox.
 * g, g!: ex-like global command.
