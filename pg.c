@@ -8,7 +8,7 @@
 #include <time.h>
 #include "mail.h"
 
-#define USERAGENT	"neatmail (git://repo.or.cz/neatmail.git)"
+#define USERAGENT	"Neatmail/1.1 (https://github.com/aligrudi/neatmail)"
 #define MBOUNDARY	"neatmail-boundary"
 #define PARTS_N		16
 #define HDRS_N		128
