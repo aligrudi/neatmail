@@ -119,8 +119,7 @@ static char *usage =
 	"options:\n"
 	"   -h hdr  \tspecify headers to include\n"
 	"   -H      \tinclude the default set of headers\n"
-	"   -s size \tmaximum message body length to include\n"
-	"   -b mbox \tmbox path\n";
+	"   -s size \tmaximum message body length to include\n";
 
 int pn(char *argv[])
 {

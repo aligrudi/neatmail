@@ -72,17 +72,19 @@ static int mbox_mid(char **path, char *mid)
 }
 
 static char *usage =
-	"usage: neatmail pg [options] [msg@path]\n\n"
+	"usage: neatmail pg [options] [address]\n\n"
 	"options:\n"
-	"   -b path \tmbox path\n"
-	"   -i msg  \tmsg number or message id (=msg_id)\n"
 	"   -h hdr  \tspecify headers to include\n"
 	"   -m      \tdecode mime message\n"
 	"   -r      \tgenerate a reply\n"
 	"   -f      \tgenerate a forward\n"
 	"   -n      \tgenerate a new message\n"
 	"   -a file \tadd an attachment\n"
-	"   -s      \tfollow neatmail-source: header\n";
+	"   -s      \tfollow neatmail-source: header\n\n"
+	"address:\n"
+	"   mbox msgnum \tpage msgnum-th message in mbox\n"
+	"   mbox =msgid \tpage the message with the given message-id\n"
+	"   msgnum@mbox \tsame as mbox msgnum\n";
 
 int pg(char *argv[])
 {

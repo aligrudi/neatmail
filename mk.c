@@ -157,7 +157,6 @@ static char *segment(char *d, char *s, int m)
 static char *usage =
 	"usage: neatmail mk [options] [mbox]\n\n"
 	"options:\n"
-	"   -b path \tmbox path\n"
 	"   -0 fmt  \tmessage first line format (e.g., 20from:40subject:)\n"
 	"   -1 fmt  \tmessage second line format\n"
 	"   -sd     \tsort by receiving date\n"
