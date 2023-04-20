@@ -81,7 +81,7 @@ static int hexval(int c)
 	return 0;
 }
 
-static void dec_qp(struct sbuf *sb, char *s, char *e)
+static void dec_qp(struct sbuf *sb, char *s, char *e, int hdr)
 {
 	while (s < e) {
 		if (*s == '=' && s[1] == '\n') {
@@ -90,7 +90,7 @@ static void dec_qp(struct sbuf *sb, char *s, char *e)
 			sbuf_chr(sb, (hexval(s[1]) << 4) | hexval(s[2]));
 			s += 3;
 		} else {
-			sbuf_chr(sb, *s == '_' ? ' ' : (unsigned char) *s);
+			sbuf_chr(sb, hdr && *s == '_' ? ' ' : (unsigned char) *s);
 			s++;
 		}
 	}
@@ -117,7 +117,7 @@ static void msg_hdrdec2(struct sbuf *sb, char *hdr, char *end)
 			if (c == 'b')
 				dec_b64(sb2, q3 + 1, q4);
 			else
-				dec_qp(sb2, q3 + 1, q4);
+				dec_qp(sb2, q3 + 1, q4, 1);
 			hdr = q4 + 2;
 			while (isspace((unsigned char) *hdr) && hdr + 1 < end)
 				hdr++;
@@ -296,7 +296,7 @@ static void read_body(struct mime *m, struct sbuf *dst, int type)
 		return;
 	}
 	if (type & ENC_QP) {
-		dec_qp(dst, m->src, end);
+		dec_qp(dst, m->src, end, 0);
 		m->src = end;
 		return;
 	}
