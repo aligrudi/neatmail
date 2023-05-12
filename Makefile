@@ -8,5 +8,7 @@ all: mail
 	$(CC) -c $(CFLAGS) $<
 mail: $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
+check:
+	$(SHELL) test.sh
 clean:
 	rm -f *.o mail
