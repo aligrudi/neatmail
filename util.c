@@ -102,8 +102,10 @@ int xpipe(char *cmd, char *ibuf, long ilen, char **obuf, long *olen)
 			int ret = read(fds[0].fd, buf, sizeof(buf));
 			if (ret > 0)
 				sbuf_mem(sb, buf, ret);
-			if (ret < 0)
+			if (ret <= 0) {
 				close(fds[0].fd);
+				fds[0].fd = -1;
+			}
 		} else if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			fds[0].fd = -1;
 		}
@@ -111,8 +113,10 @@ int xpipe(char *cmd, char *ibuf, long ilen, char **obuf, long *olen)
 			int ret = write(fds[1].fd, ibuf + nw, ilen - nw);
 			if (ret > 0)
 				nw += ret;
-			if (ret <= 0 || nw == ilen)
+			if (ret <= 0 || nw == ilen) {
 				close(fds[1].fd);
+				fds[1].fd = -1;
+			}
 		} else if (fds[1].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			fds[1].fd = -1;
 		}
