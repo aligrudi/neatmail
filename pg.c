@@ -163,9 +163,9 @@ int pg(char *argv[])
 		if (source && (hdr = msg_get(msg, msglen, "Neatmail-Source:")) != NULL) {
 			while (*hdr && *hdr != ' ')
 				hdr++;
-			free(msg);
 			if (sscanf(hdr, "%d@%s %ld %ld", &num, box, &beg, &end) != 4)
 				return 1;
+			free(msg);
 			if (mbox_off(box, beg, end, &msg, &msglen) != 0)
 				return 1;
 		}
