@@ -15,7 +15,7 @@
 
 struct mbox {
 	char *boxpath[MBOX_N];	/* mbox paths */
-	char *boxbuf[MBOX_N];	/* mbox bufferes */
+	char *boxbuf[MBOX_N];	/* mbox buffers */
 	long boxlen[MBOX_N];	/* mbox buf lengths */
 	int boxcnt[MBOX_N];	/* number mbox messages */
 	int boxbeg[MBOX_N];	/* mbox's first message */
