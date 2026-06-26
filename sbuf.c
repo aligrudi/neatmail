@@ -74,6 +74,16 @@ void sbuf_str(struct sbuf *sbuf, char *s)
 	sbuf_mem(sbuf, s, strlen(s));
 }
 
+void sbuf_rep(struct sbuf *sbuf, int s, int d)
+{
+	char *r = sbuf->s;
+	char *e = sbuf->s + sbuf->s_n;
+	while (r < e && (r = memchr(r, s, e - r))) {
+		*r = d;
+		r++;
+	}
+}
+
 int sbuf_len(struct sbuf *sbuf)
 {
 	return sbuf->s_n;

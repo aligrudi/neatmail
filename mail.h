@@ -37,6 +37,7 @@ char *sbuf_done(struct sbuf *sb);
 void sbuf_chr(struct sbuf *sbuf, int c);
 void sbuf_mem(struct sbuf *sbuf, char *s, int len);
 void sbuf_str(struct sbuf *sbuf, char *s);
+void sbuf_rep(struct sbuf *sbuf, int s, int d);
 int sbuf_len(struct sbuf *sbuf);
 void sbuf_printf(struct sbuf *sbuf, char *s, ...);
 void sbuf_free(struct sbuf *sb);

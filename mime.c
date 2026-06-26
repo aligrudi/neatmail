@@ -121,6 +121,7 @@ static void msg_hdrdec2(struct sbuf *sb, char *hdr, char *end)
 			hdr = q4 + 2;
 			while (isspace((unsigned char) *hdr) && hdr + 1 < end)
 				hdr++;
+			sbuf_rep(sb2, '\n', '\t');
 			toutf8(charset, sb, sbuf_buf(sb2), sbuf_len(sb2));
 			sbuf_free(sb2);
 		} else {
